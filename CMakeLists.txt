@@ -18,12 +18,23 @@ set (CMAKE_BACKWARDS_COMPATIBILITY 2.6)
 
 Project (FireBreath)
 
-set(CMAKE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+if(DEFINED FIRE_BREATH_ROOT)
+    set(PROJECT_ROOT ${FIRE_BREATH_ROOT})
+    message("Using project root: ${PROJECT_ROOT}")
+else()
+    set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
+
+set(CMAKE_DIR ${PROJECT_ROOT}/cmake)
 
 include(${CMAKE_DIR}/common.cmake)
 
+if(NOT WITH_CUSTOM_BOOST)
 #check to make sure we're either using WITH_SYSTEM_BOOST or have the firebreath-boost lib installed
-check_boost()
+    check_boost()
+endif()
+
 
 if (APPLE)
     clear_xcode_patches()
