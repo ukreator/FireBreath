@@ -46,7 +46,7 @@ function(clear_xcode_patches)
 
 endfunction(clear_xcode_patches)
 
-MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMPLATE INSOURCES)
+MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMPLATE INSOURCES ADDITIONAL_LDFLAGS)
 
     message ("Creating Mac Browser Plugin project ${PROJECT_NAME}")
     if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/bundle)
@@ -78,7 +78,7 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
         XCODE_ATTRIBUTE_WRAPPER_EXTENSION plugin  #sets the extension to .plugin
         XCODE_ATTRIBUTE_MACH_O_TYPE mh_bundle
         XCODE_ATTRIBUTE_INFOPLIST_FILE ${CMAKE_CURRENT_BINARY_DIR}/bundle/Info.plist
-        LINK_FLAGS "-bundle -Wl,-exported_symbols_list,${FB_ESC_ROOT_DIR}/gen_templates/ExportList_plugin.txt,-rpath,@loader_path/../Libraries")
+        LINK_FLAGS "-bundle -Wl,-exported_symbols_list,${FB_ESC_ROOT_DIR}/gen_templates/ExportList_plugin.txt ${ADDITIONAL_LDFLAGS}")
 
     set (RCFILES ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r)
 
