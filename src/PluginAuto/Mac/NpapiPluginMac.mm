@@ -38,8 +38,17 @@ Copyright 2009 PacketPass, Inc and the Firebreath development team
 #include <boost/make_shared.hpp>
 #include <string>
 
+
 #include "Mac/NpapiPluginMac.h"
 
+#if !( \
+  FBMAC_USE_QUICKDRAW || \
+  FBMAC_USE_CARBON || \
+  FBMAC_USE_COCOA || \
+  FBMAC_USE_COREGRAPHICS || \
+  FBMAC_USE_COREANIMATION)
+#define FB_GUI_DISABLED 1
+#endif
 using namespace FB::Npapi;
 
 FB::Npapi::NpapiPluginPtr FB::Npapi::createNpapiPlugin(const FB::Npapi::NpapiBrowserHostPtr& host, const std::string& mimetype)
@@ -249,15 +258,29 @@ NpapiPluginMac::NpapiPluginMac(const FB::Npapi::NpapiBrowserHostPtr &host, const
   : NpapiPlugin(host, mimetype), pluginWin(NULL), m_eventModel(), m_drawingModel() {
     // If you receive a BAD_ACCESS error here you probably have something
     // wrong in your FactoryMain.cpp in your plugin project's folder
-
+	   
     PluginCore::setPlatform("Mac", "NPAPI");
-    
-    // Get the path to the bundle
+	// Get the path to the bundle
     static const std::string pluginPath = getPluginPath();      
     setFSPath(pluginPath);
-
+	 
+#if FB_GUI_DISABLED	
+    // GUI is disabled, but Safari requires explicit configuration of drawing mode, even if drawing isn't used by plugin
+    // Without specifing drawing mode, 32bit plugins silently die in 64bit Safari (WebKitPluginHost process siletnly dies)  
+    if(supports(host, NPNVsupportsCarbonBool) && supports(host, NPNVsupportsQuickDrawBool))
+    {
+	    set(host, NPPVpluginEventModel, (void*)NPEventModelCarbon);
+  	    set(host, NPPVpluginDrawingModel, (void*)NPDrawingModelQuickDraw);
+	}
+	else if(supports(host, NPNVsupportsCarbonBool) && supports(host, NPNVsupportsCoreGraphicsBool))
+	{
+		set(host, NPPVpluginEventModel, (void*)NPEventModelCarbon);
+		set(host, NPPVpluginDrawingModel, (void*)NPDrawingModelCoreGraphics);
+	}		  	
+#else
+	// One of drawing methods was chosen - configure normally
     if(enableInvalidatingCoreAnimation(host)) {
-        m_eventModel = EventModelCocoa;
+		m_eventModel = EventModelCocoa;
         m_drawingModel = DrawingModelInvalidatingCoreAnimation;
 #if FBMAC_USE_COCOA && FBMAC_USE_COREANIMATION
         // This hack exists to allow the plugin to call setLayer() on 
@@ -270,7 +293,7 @@ NpapiPluginMac::NpapiPluginMac(const FB::Npapi::NpapiBrowserHostPtr &host, const
         pluginMain->SetWindow(pluginWinICA);
 #endif
     } else if(enableCoreAnimation(host)) {
-        m_eventModel   = EventModelCocoa;
+		m_eventModel   = EventModelCocoa;
         m_drawingModel = DrawingModelCoreAnimation;
 #if FBMAC_USE_COCOA && FBMAC_USE_COREANIMATION
         // This hack exists to allow the plugin to call setLayer() on 
@@ -283,13 +306,13 @@ NpapiPluginMac::NpapiPluginMac(const FB::Npapi::NpapiBrowserHostPtr &host, const
         pluginMain->SetWindow(pluginWinCA);
 #endif
     } else if(enableCoreGraphicsCocoa(host)) {
-        m_eventModel   = EventModelCocoa;
+		m_eventModel   = EventModelCocoa;
         m_drawingModel = DrawingModelCoreGraphics;
     } else if(enableCoreGraphicsCarbon(host)) {
-        m_eventModel   = EventModelCarbon;
+		m_eventModel   = EventModelCarbon;
         m_drawingModel = DrawingModelCoreGraphics;
     } else if(enableQuickDraw(host)) {
-        m_eventModel   = EventModelCarbon;
+		m_eventModel   = EventModelCarbon;
         m_drawingModel = DrawingModelQuickDraw;
     } else {
 #ifdef __LP64__
@@ -302,6 +325,7 @@ NpapiPluginMac::NpapiPluginMac(const FB::Npapi::NpapiBrowserHostPtr &host, const
         m_drawingModel = DrawingModelQuickDraw;
 #endif
     }
+#endif
 }
 
 NpapiPluginMac::~NpapiPluginMac()
