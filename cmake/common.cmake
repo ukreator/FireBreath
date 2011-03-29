@@ -95,9 +95,6 @@ macro (add_boost_library BOOST_LIB)
     
         list(APPEND Boost_LIBRARIES boost_${BOOST_LIB})
         list(REMOVE_DUPLICATES Boost_LIBRARIES)
-        if (NOT TARGET boost_${BOOST_LIB})
-            add_subdirectory(${FB_BOOST_SOURCE_DIR}/libs/${BOOST_LIB} ${CMAKE_BINARY_DIR}/boost/libs/${BOOST_LIB})
-        endif()
     endif()
 
 endmacro (add_boost_library)
