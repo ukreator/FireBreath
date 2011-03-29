@@ -258,7 +258,7 @@ namespace FB { namespace ActiveX {
         try {
             CComQIPtr<IDispatch> disp(pUnkSink);
             if (disp) {
-				IDispatchAPIPtr obj(IDispatchAPI::create(disp, m_host));
+                IDispatchAPIPtr obj(IDispatchAPI::create(disp, m_host));
                 m_connPtMap[(DWORD)obj.get()] = obj;
                 *pdwCookie = (DWORD)obj.get();
                 getAPI()->registerEventInterface(obj);
@@ -443,12 +443,13 @@ namespace FB { namespace ActiveX {
             } else if (wFlags & DISPATCH_METHOD && (api->HasMethod(wsName) || !id) ) {
 
                 std::vector<FB::variant> params;
-                if (id == 0) {
+                if (pdp->cNamedArgs > 0 && pdp->rgdispidNamedArgs[0] == DISPID_THIS) {
                     // TODO: Figure out why default function calls have an extra argument;
                     // My theory is that the argument is the object we're calling this on,
                     // since the first (last, since we reverse the order) argument passed
                     // is an IDispatch object
-                    wsName = L"";
+                    if (id == 0)
+                        wsName = L"";
                     for (int i = pdp->cArgs - 1; i >= 1; i--) {
                         params.push_back(m_host->getVariant(&pdp->rgvarg[i]));
                     }

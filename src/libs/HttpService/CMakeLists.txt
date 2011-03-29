@@ -16,7 +16,7 @@
 cmake_minimum_required (VERSION 2.6)
 set (CMAKE_BACKWARDS_COMPATIBILITY 2.6)
 
-include(${CMAKE_DIR}/common.cmake)
+project(HttpService)
 
 add_boost_library(thread)
 add_boost_library(filesystem)
@@ -102,6 +102,7 @@ list(APPEND SOURCES
 if (NOT TARGET_ALREADY_EXISTS)
 
     add_library (HttpService STATIC ${SOURCES})
+    set_target_properties(HttpService PROPERTIES FOLDER "Libraries")
 
     target_link_libraries(HttpService ${FBLIB_LIBRARIES})
 

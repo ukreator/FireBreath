@@ -35,6 +35,22 @@ FB::SimpleStreamHelperPtr FB::SimpleStreamHelper::AsyncGet( const FB::BrowserHos
     return ptr;
 }
 
+FB::SimpleStreamHelperPtr FB::SimpleStreamHelper::AsyncPost( const FB::BrowserHostPtr& host, const FB::URI& uri, const std::string& postdata, 
+                                                           const HttpCallback& callback, bool cache /*= true*/, size_t bufferSize /*= 256*1024*/ )
+{
+    if (!host->isMainThread()) {
+        // This must be run from the main thread
+        return host->CallOnMainThread(boost::bind(&FB::SimpleStreamHelper::AsyncPost, host, uri, postdata, callback, cache, bufferSize));
+    }
+    FB::SimpleStreamHelperPtr ptr(boost::make_shared<FB::SimpleStreamHelper>(host, callback, bufferSize));
+    // This is kinda a weird trick; it's responsible for freeing itself, unless something decides
+    // to hold a reference to it.
+    ptr->keepReference(ptr);
+    FB::BrowserStreamPtr stream(host->createPostStream(uri.toString(), ptr, postdata, true, false, bufferSize));
+    return ptr;
+}
+
+
 struct SyncGetHelper
 {
 public:
@@ -96,6 +112,7 @@ bool FB::SimpleStreamHelper::onStreamCompleted( FB::StreamCompletedEvent *evt, F
         if (callback)
             callback(false, FB::HeaderMap(), boost::shared_array<uint8_t>(), received);
         callback.clear();
+        self.reset();
         return false;
     }
     if (!data) {
@@ -117,7 +134,8 @@ bool FB::SimpleStreamHelper::onStreamCompleted( FB::StreamCompletedEvent *evt, F
     if (callback)
         callback(true, parse_http_headers(stream->getHeaders()), data, received);
     callback.clear();
-    return true;
+    self.reset();
+    return false; // Always return false to make sure the browserhost knows to let go of the object
 }
 
 bool FB::SimpleStreamHelper::onStreamOpened( FB::StreamOpenedEvent *evt, FB::BrowserStream * )
@@ -149,7 +167,7 @@ bool FB::SimpleStreamHelper::onStreamDataArrived( FB::StreamDataArrivedEvent *ev
             curLen = blockSize-pos;
         }
         // Copy the bytes that fit in this buffer
-        std::copy(buf, buf+curLen, destBuf+offset);
+        std::copy(buf, buf+curLen, destBuf+pos);
         buf += curLen;
         offset += curLen;
         len -= curLen;

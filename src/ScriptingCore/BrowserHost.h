@@ -80,7 +80,7 @@ namespace FB
         ///
         /// @brief  Finaliser. 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual ~BrowserHost() { }
+        virtual ~BrowserHost();
 
     public:
         ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -212,6 +212,30 @@ namespace FB
                                             bool cache = true, bool seekable = false, 
                                             size_t internalBufferSize = 128 * 1024 ) const;
         
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        /// @fn virtual BrowserStreamPtr createPostStream(const std::string& url, const PluginEventSinkPtr& callback,
+        /// str::string postdata, bool cache = true, bool seekable = false, size_t internalBufferSize = 128 * 1024 ) const = 0
+        ///
+        /// @brief  Creates a BrowserStream. 
+        ///
+        /// @todo   Document this better
+        ///
+        /// @param  url                 URL of the document to request. 
+        /// @param  callback            PluginEventSink to send status updates to (usually your Plugin class
+        ///                             derived from PluginCore)
+        /// @param  postdata               data to post.
+        /// @param  cache               true to cache. 
+        /// @param  seekable            true if the Stream should be seekable. 
+        /// @param  internalBufferSize  Size of the internal buffer. 
+        ///
+        /// @return null if it fails, else BrowserStream object
+        /// @todo this should probably be a shared_ptr instead of a normal ptr
+        /// @since 1.4a3 uses shared_ptrs instead of raw ptrs
+        virtual BrowserStreamPtr createPostStream(const std::string& url, const PluginEventSinkPtr& callback, 
+                                                const std::string& postdata,
+                                                bool cache = true, bool seekable = false,
+                                                size_t internalBufferSize = 128 * 1024 ) const;
+
         // Methods for accessing the DOM
     public:
 
@@ -354,7 +378,10 @@ namespace FB
         virtual BrowserStreamPtr _createStream(const std::string& url, const PluginEventSinkPtr& callback, 
                                             bool cache = true, bool seekable = false, 
                                             size_t internalBufferSize = 128 * 1024 ) const = 0;
-
+        virtual BrowserStreamPtr _createPostStream(const std::string& url, const PluginEventSinkPtr& callback, 
+                                            const std::string& postdata,
+                                            bool cache = true, bool seekable = false, 
+                                            size_t internalBufferSize = 128 * 1024 ) const = 0;
     public:
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -365,11 +392,16 @@ namespace FB
         ///
         /// @return BrowerHostPtr for "this" pointer
         ////////////////////////////////////////////////////////////////////////////////////////////////////
-        BrowserHostPtr shared_ptr()
-        {
-            return shared_from_this();
-        }
-
+        BrowserHostPtr shared_ptr() { return shared_from_this(); }
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        /// @fn BrowserHostPtr shared_ptr()
+        ///
+        /// @brief  Returns the count of how many BrowserHost object instances are active
+        ///
+        /// @since 1.5
+        /// @return int number of BrowserHost instances that have been created and not destroyed
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        static int getInstanceCount() { return InstanceCount; }
 
     private:
         // Stores the thread_id for the thread the plugin was started on
@@ -382,6 +414,7 @@ namespace FB
         mutable boost::recursive_mutex m_jsapimutex;
 
         mutable std::list<FB::JSAPIPtr> m_retainedObjects;
+        static volatile int InstanceCount;
         BrowserStreamManagerPtr m_streamMgr;
     };
 

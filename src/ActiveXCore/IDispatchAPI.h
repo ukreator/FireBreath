@@ -34,11 +34,14 @@ namespace FB { namespace ActiveX {
         public FB::JSObject
     {
     public:
-		static boost::shared_ptr<IDispatchAPI> create(IDispatch *, const ActiveXBrowserHostPtr&);
+        static boost::shared_ptr<IDispatchAPI> create(IDispatch *, const ActiveXBrowserHostPtr&);
         virtual ~IDispatchAPI(void);
 
         void *getEventId() const { return (void*)m_obj; }
-        void *getEventContext() const { return m_browser->getContextID(); };
+        void *getEventContext() const {
+            if (m_browser.expired()) return NULL;
+            else return getHost()->getContextID();
+        };
         IDispatch *getIDispatch() const { return m_obj; }
 
         // Enumerate members
@@ -46,7 +49,14 @@ namespace FB { namespace ActiveX {
         size_t getMemberCount() const;
 
     protected:
-        ActiveXBrowserHostPtr m_browser;
+        ActiveXBrowserHostPtr getHost() const {
+            ActiveXBrowserHostPtr ptr(m_browser.lock());
+            if (!ptr) {
+                throw std::bad_cast("BrowserHost has shut down");
+            }
+            return ptr;
+        }
+        ActiveXBrowserHostWeakPtr m_browser;
         IDispatch* m_obj;
         bool is_JSAPI;
         FB::JSAPIWeakPtr inner;
@@ -74,8 +84,8 @@ namespace FB { namespace ActiveX {
     public:
         virtual FB::JSAPIPtr getJSAPI() const;
 
-	private:
-		friend boost::shared_ptr<IDispatchAPI> boost::make_shared<IDispatchAPI>(IDispatch * const &, const ActiveXBrowserHostPtr&);
+    private:
+        friend boost::shared_ptr<IDispatchAPI> boost::make_shared<IDispatchAPI>(IDispatch * const &, const ActiveXBrowserHostPtr&);
         IDispatchAPI(IDispatch *, const ActiveXBrowserHostPtr&);
     };
 } }

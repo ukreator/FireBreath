@@ -22,6 +22,7 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include "axmain.h"
 #include "FBControl.h"
 #include "axutil.h"
+#include "PluginCore.h"
 #include <boost/algorithm/string.hpp>
 
 using FB::ActiveX::isStaticInitialized;
@@ -31,12 +32,15 @@ using FB::ActiveX::FbPerUserRegistration;
 // Used to determine whether the DLL can be unloaded by OLE
 STDAPI DllCanUnloadNow(void)
 {
-	HRESULT hr = _AtlModule.DllCanUnloadNow();
-	if (hr == S_OK && isStaticInitialized()) {
-	    getFactoryInstance()->globalPluginDeinitialize();
+    HRESULT hr = _AtlModule.DllCanUnloadNow();
+    if ((hr == S_OK || !FB::PluginCore::getActivePluginCount()) && isStaticInitialized()) {
+        // We had to change this so that if this function gets called (a sure sign that the browser
+        // would like to unload the DLL) and there are no active plugins it will call Deinitialize
+        // because some systems it never returned S_OK :-( Would love to know why and fix it correctly...
+        getFactoryInstance()->globalPluginDeinitialize();
         FB::Log::stopLogging();
-		flagStaticInitialized(false);
-	}
+        flagStaticInitialized(false);
+    }
     return hr;
 }
 
@@ -44,13 +48,13 @@ STDAPI DllCanUnloadNow(void)
 // Returns a class factory to create an object of the requested type
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID* ppv)
 {
-	HRESULT hr = _AtlModule.DllGetClassObject(rclsid, riid, ppv);
-	if (SUCCEEDED(hr) && !isStaticInitialized()) {
+    HRESULT hr = _AtlModule.DllGetClassObject(rclsid, riid, ppv);
+    if (SUCCEEDED(hr) && !isStaticInitialized()) {
         FB::Log::initLogging();
-	    getFactoryInstance()->globalPluginInitialize();
-		flagStaticInitialized(true);
-	}
-	return hr;
+        getFactoryInstance()->globalPluginInitialize();
+        flagStaticInitialized(true);
+    }
+    return hr;
 }
 
 std::string getProcessName()

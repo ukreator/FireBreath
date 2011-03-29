@@ -19,10 +19,13 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include "win_common.h"
 //#include "global/COM_config.h"
 #include <atlctl.h>
+#include <map>
 #include "BrowserHost.h"
 #include "APITypes.h"
 #include "FBPointers.h"
 #include "SafeQueue.h"
+#include "ShareableReference.h"
+#include "ActiveXFactoryDefinitions.h"
 
 namespace FB {
     class WinMessageWindow;
@@ -49,12 +52,18 @@ namespace FB {
                                                     bool cache = true, bool seekable = false, 
                                                     size_t internalBufferSize = 128 * 1024 ) const;
 
+            IDispatchEx* getJSAPIWrapper(const FB::JSAPIWeakPtr& api, bool autoRelease = false);
+
+            virtual FB::BrowserStreamPtr _createPostStream(const std::string& url, const FB::PluginEventSinkPtr& callback, 
+                                                    const std::string& postdata, bool cache = true, bool seekable = false, 
+                                                    size_t internalBufferSize = 128 * 1024 ) const;
+
         public:
             FB::DOM::DocumentPtr getDOMDocument();
             FB::DOM::WindowPtr getDOMWindow();
             FB::DOM::ElementPtr getDOMElement();
             void evaluateJavaScript(const std::string &script);
-			void shutdown();
+            void shutdown();
 
         public:
             FB::DOM::WindowPtr _createWindow(const FB::JSObjectPtr& obj) const;
@@ -64,7 +73,7 @@ namespace FB {
 
         protected:
             void initDOMObjects(); // This is const so that getDOMDocument/Window can be
-        	CComQIPtr<IOleClientSite> m_spClientSite;
+            CComQIPtr<IOleClientSite> m_spClientSite;
             CComQIPtr<IHTMLDocument2> m_htmlDoc;
             CComQIPtr<IDispatch> m_htmlDocDisp;
             CComPtr<IHTMLWindow2> m_htmlWin;
@@ -77,6 +86,8 @@ namespace FB {
         private:
             mutable boost::shared_mutex m_xtmutex;
             mutable FB::SafeQueue<IDispatch*> m_deferredObjects;
+            typedef std::map<void*, FB::WeakIDispatchRef> IDispatchRefMap;
+            mutable IDispatchRefMap m_cachedIDispatch;
 
         public:
             FB::variant getVariant(const VARIANT *cVar);

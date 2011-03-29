@@ -51,9 +51,13 @@ namespace FB {
 #if FB_GUI_DISABLED != 1
     public:
         GdkNativeWindow getWindow();
+        GtkWidget* getWidget() { return m_canvas; }
         void setBrowserWindow(GdkNativeWindow win) {  m_browserWindow = win; }
         GdkNativeWindow getBrowserWindow() { return m_browserWindow; }
         static gboolean _EventCallback(GtkWidget *widget, GdkEvent *event, gpointer user_data);
+
+        // You probably won't ever want to call this yourself.  Call getWindow instead.
+        GdkNativeWindow getTopLevelWindow() { return m_window; }
     protected:
         gboolean EventCallback(GtkWidget *widget, GdkEvent *event);
 
@@ -65,7 +69,6 @@ namespace FB {
 #endif
 
     protected:
-        int m_handler_id;
         int32_t m_x;
         int32_t m_y;
         uint32_t m_width;
@@ -75,6 +78,8 @@ namespace FB {
         int32_t m_clipRight;
         int32_t m_clipTop;
         int32_t m_clipBottom;
+
+        int m_handler_id;
     };
 
 };

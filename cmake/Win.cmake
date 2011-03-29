@@ -79,6 +79,7 @@ if (NOT ATL_INCLUDE_DIR)
     PATHS
         ${VC_DIR}/atlmfc/include
         ${ATL_GUESSES}
+    NO_DEFAULT_PATH
     )
 
     find_file(ATLLIB
@@ -86,6 +87,7 @@ if (NOT ATL_INCLUDE_DIR)
     PATHS
         ${VC_DIR}/atlmfc/lib
         ${ATLLIB_GUESSES}
+    NO_DEFAULT_PATH
     )
 
     find_file(MFCWIN
@@ -93,6 +95,7 @@ if (NOT ATL_INCLUDE_DIR)
     PATHS
         ${VC_DIR}/atlmfc/include
         ${MFC_GUESSES}
+    NO_DEFAULT_PATH
     )
 
     if (ATLWIN AND ATLLIB)
@@ -101,7 +104,9 @@ if (NOT ATL_INCLUDE_DIR)
         find_file(ATL_LIBRARY
             atlthunk.lib
         PATHS
-            ${ATL_LIBRARY_DIR})
+            ${ATL_LIBRARY_DIR}
+        NO_DEFAULT_PATH
+            )
         if (ATL_LIBRARY)
             set (ATL_LIBRARY "atlthunk.lib" CACHE INTERNAL "Used to link extra ATL libraries on systems that need it")
         else()
@@ -136,8 +141,8 @@ MACRO(add_windows_plugin PROJNAME INSOURCES)
     set_target_properties (${PROJNAME} PROPERTIES
         OUTPUT_NAME ${FBSTRING_PluginFileName}
         PROJECT_LABEL ${PROJNAME}
-        RUNTIME_OUTPUT_DIRECTORY "${BIN_DIR}/${PLUGIN_NAME}"
-        LIBRARY_OUTPUT_DIRECTORY "${BIN_DIR}/${PLUGIN_NAME}"
+        RUNTIME_OUTPUT_DIRECTORY "${FB_BIN_DIR}/${PLUGIN_NAME}"
+        LIBRARY_OUTPUT_DIRECTORY "${FB_BIN_DIR}/${PLUGIN_NAME}"
         LINK_FLAGS "${LINK_FLAGS}"
         )
 
@@ -187,7 +192,7 @@ macro(firebreath_sign_plugin PROJNAME PFXFILE PASSFILE TIMESTAMP_URL)
         get_target_property(LIBDIR ${PROJNAME} LIBRARY_OUTPUT_DIRECTORY)
 
         set(_PLUGFILENAME "${LIBDIR}/${CMAKE_CFG_INTDIR}/${ONAME}.dll")
-        firebreath_sign_file(${PROJNAME} ${_PLUGFILENAME} ${PFXFILE} ${PASSFILE} ${TIMESTAMP_URL})
+        firebreath_sign_file("${PROJNAME}" "${_PLUGFILENAME}" "${PFXFILE}" "${PASSFILE}" "${TIMESTAMP_URL}")
     endif()
 endmacro(firebreath_sign_plugin)
 
@@ -202,7 +207,7 @@ function (add_wix_installer PROJNAME WIX_SOURCEFILES WIX_COMPGROUP WIX_OUTDIR WI
             set(SOURCELIST ${SOURCELIST} ${CMAKE_CURRENT_BINARY_DIR}/${_tmp_File})
         ENDFOREACH()
         
-        set (WIX_HEAT_FLAGS ${WIX_HEAT_FLAGS} -var var.BINSRC "-t:${CMAKE_DIR}\\FixFragment.xslt")
+        set (WIX_HEAT_FLAGS ${WIX_HEAT_FLAGS} -var var.BINSRC "-t:${FB_ROOT}\\cmake\\FixFragment.xslt")
         set (WIX_CANDLE_FLAGS ${WIX_LINK_FLAGS} -dBINSRC=${WIX_OUTDIR})
         set (WIX_LINK_FLAGS ${WIX_LINK_FLAGS} -sw1076)
         WIX_HEAT(WIX_DLLFILES WIXDLLWXS_LIST NONE)
@@ -218,7 +223,7 @@ function (add_wix_installer PROJNAME WIX_SOURCEFILES WIX_COMPGROUP WIX_OUTDIR WI
         set_source_files_properties(${WIXOBJ_LIST} ${WIX_DEST} PROPERTIES GENERATED 1)
         SOURCE_GROUP(Binary FILES ${WIXOBJ_LIST})
         set (WIX_SOURCES
-                ${CMAKE_DIR}/dummy.cpp
+                ${FB_ROOT}/cmake/dummy.cpp
                 ${WIX_SOURCEFILES}
                 ${SOURCELIST}
                 ${WIXOBJ_LIST}

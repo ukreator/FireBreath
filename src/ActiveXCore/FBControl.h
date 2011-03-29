@@ -22,11 +22,13 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include <atlctl.h>
 #include <ShlGuid.h>
 #include <boost/cast.hpp>
+#include <boost/scoped_array.hpp>
 #include "DOM/Window.h"
 #include "FactoryBase.h"
 #include "logging.h"
 #include "JSAPI_IDispatchEx.h"
 #include "PluginInfo.h"
+#include "ShareableReference.h"
 
 #include "BrowserPlugin.h"
 #include "PluginCore.h"
@@ -122,7 +124,7 @@ namespace FB {
 
             STDMETHOD(SetObjectRects)(LPCRECT prcPos, LPCRECT prcClip);
             STDMETHOD(InPlaceActivate)(LONG iVerb, const RECT* prcPosRect);
-	
+    
             // Called when the control is deactivated when it's time to shut down
             STDMETHOD(InPlaceDeactivate)(void);
 
@@ -144,7 +146,7 @@ namespace FB {
             // ever get called
             STDMETHOD(Save)(IPropertyBag *pPropBag, BOOL fClearDirty, BOOL fSaveAllProperties);
 
-        	virtual HRESULT OnDraw(ATL_DRAWINFO& di);
+            virtual HRESULT OnDraw(ATL_DRAWINFO& di);
 
             void invalidateWindow( uint32_t left, uint32_t top, uint32_t right, uint32_t bottom );
         public:
@@ -213,7 +215,7 @@ namespace FB {
         template <const GUID* pFbCLSID, const char* pMT, class ICurObjInterface, const IID* piid, const GUID* plibid>
         HRESULT FB::ActiveX::CFBControl<pFbCLSID, pMT, ICurObjInterface, piid, plibid>::OnDraw( ATL_DRAWINFO& di )
         {
-            if (m_bWndLess && FB::pluginGuiEnabled()) {
+            if (pluginWin && m_bWndLess && FB::pluginGuiEnabled()) {
                 HRESULT lRes(0);
                 PluginWindowlessWin* win = static_cast<PluginWindowlessWin*>(pluginWin);
                 win->setWindowPosition(
@@ -224,15 +226,20 @@ namespace FB {
                     );
                 win->HandleEvent(WM_PAINT, reinterpret_cast<uint32_t>(di.hdcDraw), NULL, lRes);
             }
-    		return S_OK;
+            return S_OK;
         }
 
         template <const GUID* pFbCLSID, const char* pMT, class ICurObjInterface, const IID* piid, const GUID* plibid>
         void FB::ActiveX::CFBControl<pFbCLSID, pMT, ICurObjInterface, piid, plibid>::invalidateWindow( uint32_t left, uint32_t top, uint32_t right, uint32_t bottom )
         {
-            RECT r = { left, top, right, bottom };
-            if (m_spInPlaceSite)
-                m_spInPlaceSite->InvalidateRect(&r, TRUE);
+            if (!m_host->isMainThread() && m_spInPlaceSite) {
+                boost::shared_ptr<FB::ShareableReference<CFBControlX> > ref(boost::make_shared<FB::ShareableReference<CFBControlX> >(this));
+                m_host->ScheduleOnMainThread(ref, boost::bind(&CFBControlX::invalidateWindow, this, left, top, right, bottom));
+            } else {
+                RECT r = { left, top, right, bottom };
+                if (m_spInPlaceSite)
+                    m_spInPlaceSite->InvalidateRect(&r, TRUE);
+            }
         }
 
         template <const GUID* pFbCLSID, const char* pMT, class ICurObjInterface, const IID* piid, const GUID* plibid>
@@ -246,7 +253,7 @@ namespace FB {
         STDMETHODIMP CFBControl<pFbCLSID, pMT,ICurObjInterface,piid,plibid>::SetSite(IUnknown *pUnkSite)
         {
             HRESULT hr = IObjectWithSiteImpl<CFBControl<pFbCLSID,pMT,ICurObjInterface,piid,plibid> >::SetSite(pUnkSite);
-            if (!pUnkSite) {
+            if (!pUnkSite || !pluginMain) {
                 m_webBrowser.Release();
                 m_serviceProvider.Release();
                 if (m_host)
@@ -254,7 +261,6 @@ namespace FB {
                 m_host.reset();
                 return hr;
             }
-
             m_serviceProvider = pUnkSite;
             if (!m_serviceProvider)
                 return E_FAIL;
@@ -274,7 +280,7 @@ namespace FB {
         STDMETHODIMP CFBControl<pFbCLSID, pMT,ICurObjInterface,piid,plibid>::SetClientSite( IOleClientSite *pClientSite )
         {
             HRESULT hr = IOleObjectImpl<CFBControlX>::SetClientSite (pClientSite);
-            if (!pClientSite) {
+            if (!pClientSite || !pluginMain) {
                 m_webBrowser.Release();
                 m_serviceProvider.Release();
                 if (m_host)
@@ -318,7 +324,7 @@ namespace FB {
             if (hr != S_OK)
                 return hr;
 
-            if (pluginWin || !FB::pluginGuiEnabled()) {
+            if (pluginWin || !FB::pluginGuiEnabled() || !pluginMain) {
                 // window already created or gui disabled
                 return hr;
             }

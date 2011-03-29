@@ -19,13 +19,17 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include "NpapiTypes.h"
 #include "BrowserHost.h"
 #include "SafeQueue.h"
+#include "ShareableReference.h"
 #include <boost/thread.hpp>
 
 namespace FB { namespace Npapi {
 
-    class NpapiPluginModule;
-    class NPObjectAPI;
+    FB_FORWARD_PTR(NpapiPluginModule);
+    FB_FORWARD_PTR(NPObjectAPI);
+    FB_FORWARD_PTR(NpapiBrowserHost);
+    FB_FORWARD_PTR(NPJavascriptObject);
     typedef boost::shared_ptr<NPObjectAPI> NPObjectAPIPtr;
+    typedef boost::weak_ptr<FB::ShareableReference<NPJavascriptObject> > NPObjectWeakRef;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     /// @class  NpapiBrowserHost
@@ -46,11 +50,16 @@ namespace FB { namespace Npapi {
                                             bool cache = true, bool seekable = false, 
                                             size_t internalBufferSize = 128 * 1024 ) const;
 
+        virtual BrowserStreamPtr _createPostStream(const std::string& url, const PluginEventSinkPtr& callback, 
+                                            const std::string& postdata, bool cache = true, bool seekable = false, 
+                                            size_t internalBufferSize = 128 * 1024 ) const;
+
     public:
         virtual bool _scheduleAsyncCall(void (*func)(void *), void *userData) const;
         virtual void *getContextID() const { return (void *)m_npp; }
         virtual void deferred_release(NPObject* obj);
         virtual void DoDeferredRelease() const;
+        NPJavascriptObject* getJSAPIWrapper( const FB::JSAPIWeakPtr& api, bool autoRelease = false );
 
     public:
         FB::DOM::DocumentPtr getDOMDocument();
@@ -58,6 +67,9 @@ namespace FB { namespace Npapi {
         FB::DOM::ElementPtr getDOMElement();
         void evaluateJavaScript(const std::string &script);
         bool isSafari() const;
+        
+    public:
+        void shutdown();
 
     public:
         FB::variant getVariant(const NPVariant *npVar);
@@ -72,6 +84,8 @@ namespace FB { namespace Npapi {
         NPObjectAPIPtr m_htmlWin;
         NPObjectAPIPtr m_htmlElement;
         mutable FB::SafeQueue<NPObject*> m_deferredObjects;
+        typedef std::map<void*, NPObjectWeakRef> NPObjectRefMap;
+        mutable NPObjectRefMap m_cachedNPObject;
 
     public:
         void* MemAlloc(uint32_t size) const;

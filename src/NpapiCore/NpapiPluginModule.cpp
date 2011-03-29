@@ -18,20 +18,41 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include <cassert>
 #include <boost/thread.hpp>
 #include "logging.h"
+#include "BrowserHost.h"
+#include "PluginCore.h"
+#include <assert.h>
 
 using namespace FB::Npapi;
 
-NpapiPluginModule::NpapiPluginModule(void) : m_threadId(boost::this_thread::get_id())
+volatile bool NpapiPluginModule::PluginModuleInitialized(false);
+
+NpapiPluginModule::NpapiPluginModule(bool init/* = true*/)
+    : m_threadId(boost::this_thread::get_id()), m_init(init)
 {
-    FB::Log::initLogging();
-    getFactoryInstance()->globalPluginInitialize();
+    if (init) {
+        assert(!PluginModuleInitialized);
+        PluginModuleInitialized = true;
+        FB::Log::initLogging();
+        getFactoryInstance()->globalPluginInitialize();
+    }
     memset(&NPNFuncs, 0, sizeof(NPNetscapeFuncs));
 }
 
 NpapiPluginModule::~NpapiPluginModule(void)
 {
-    getFactoryInstance()->globalPluginDeinitialize();
-    FB::Log::stopLogging();
+    if (m_init) {
+        assert(PluginModuleInitialized);
+        PluginModuleInitialized = false;
+        getFactoryInstance()->globalPluginDeinitialize();
+
+        // NOTE: If this assertion fails you have some sort of memory leak; BrowserHost objects
+        // are reference counted, so you have a shared_ptr to your browserhost sometime. This
+        // can be a big problem because BrowserHost manages a lot of your memory and if you get
+        // a new one for each instances on each page (including page reloads).
+        assert(BrowserHost::getInstanceCount() == 0);
+        assert(PluginCore::getActivePluginCount() == 0);
+        FB::Log::stopLogging();
+    }
 }
 
 void NpapiPluginModule::assertMainThread()
@@ -189,7 +210,6 @@ int32_t NpapiPluginModule::IntFromIdentifier(NPIdentifier identifier)
 NPObject *NpapiPluginModule::RetainObject(NPObject *npobj)
 {
     assertMainThread();
-    FBLOG_DEBUG("Npapi", "Retaining object at " << boost::lexical_cast<std::string>(npobj));
     if (NPNFuncs.retainobject != NULL) {
         return NPNFuncs.retainobject(npobj);
     } else {
@@ -200,7 +220,6 @@ NPObject *NpapiPluginModule::RetainObject(NPObject *npobj)
 void NpapiPluginModule::ReleaseObject(NPObject *npobj)
 {
     assertMainThread();
-    FBLOG_DEBUG("Npapi", "Releasing object at " << boost::lexical_cast<std::string>(npobj));
     if (NPNFuncs.releaseobject != NULL) {
         NPNFuncs.releaseobject(npobj);
     }
