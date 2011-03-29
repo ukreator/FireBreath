@@ -106,8 +106,8 @@ target_link_libraries(${PROJECT_NAME}
     ${LIBDL_LIBRARIES}
     )
 
-if (NOT WITH_SYSTEM_BOOST)
-	export(TARGETS NpapiCore ${Boost_LIBRARIES} APPEND FILE ${FB_EXPORT_FILE})
-else()
-	export(TARGETS NpapiCore APPEND FILE ${FB_EXPORT_FILE})
-endif()
+#if (NOT WITH_SYSTEM_BOOST)
+#	export(TARGETS NpapiCore ${Boost_LIBRARIES} APPEND FILE ${FB_EXPORT_FILE})
+#else()
+#	export(TARGETS NpapiCore APPEND FILE ${FB_EXPORT_FILE})
+#endif()
