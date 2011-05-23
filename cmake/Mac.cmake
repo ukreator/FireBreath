@@ -58,13 +58,16 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
     configure_template(${STRINGS_TEMPLATE} ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/InfoPlist.strings)
     configure_template(${LOCALIZED_TEMPLATE} ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r)
 
-    #set(MAC_RESOURCE_FILES ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r)
+    
+    set(PLIST_SRC ${CMAKE_CURRENT_BINARY_DIR}/bundle/Info.plist)
+    set(LANG_RES ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj)
+        
 
     set(SOURCES
         ${${INSOURCES}}
-        ${CMAKE_CURRENT_BINARY_DIR}/bundle/Info.plist
-        ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/InfoPlist.strings
-        ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r
+        ${PLIST_SRC}
+        ${LANG_RES}/InfoPlist.strings
+        ${LANG_RES}/Localized.r
     )
 
     add_definitions(
@@ -77,7 +80,7 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
     set_target_properties(${PROJECT_NAME} PROPERTIES
         XCODE_ATTRIBUTE_WRAPPER_EXTENSION plugin  #sets the extension to .plugin
         XCODE_ATTRIBUTE_MACH_O_TYPE mh_bundle
-        XCODE_ATTRIBUTE_INFOPLIST_FILE ${CMAKE_CURRENT_BINARY_DIR}/bundle/Info.plist
+        XCODE_ATTRIBUTE_INFOPLIST_FILE ${PLIST_SRC}
         LINK_FLAGS "-bundle -Wl,-exported_symbols_list,${FB_ESC_ROOT_DIR}/gen_templates/ExportList_plugin.txt ${ADDITIONAL_LDFLAGS}")
 
     set (RCFILES ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r)
@@ -88,15 +91,29 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
 
     find_program(RC_COMPILER Rez NO_DEFAULT_PATHS)
     execute_process(COMMAND
-        ${RC_COMPILER} ${RCFILES} -useDF ${ARCHS} -arch x86_64 -o ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.rsrc
+        ${RC_COMPILER} ${RCFILES} -useDF ${ARCHS} -arch x86_64 -o ${LANG_RES}/Localized.rsrc
         )
 
     set_source_Files_properties(
-        ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/InfoPlist.strings
+        ${LANG_RES}/InfoPlist.strings
         PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/English.lproj")
+    
+    if("${CMAKE_GENERATOR}" STREQUAL "Unix Makefiles")
+        set(BUNDLE_SRC ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app)
+        set(BUNDLE_TARGET ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.plugin)
 
-    patch_xcode_plugin( "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.xcodeproj/project.pbxproj" "${PROJECT_NAME}" )
-    patch_xcode_plugin( "${CMAKE_BINARY_DIR}/FireBreath.xcodeproj/project.pbxproj" "${PROJECT_NAME}" )
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory      ${BUNDLE_SRC} ${BUNDLE_TARGET}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different   ${PLIST_SRC} ${BUNDLE_TARGET}/Contents
+            COMMAND ${CMAKE_COMMAND} -E copy_directory	    ${LANG_RES} ${BUNDLE_TARGET}/Contents/Resources
+
+        )
+    else()
+        patch_xcode_plugin( "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.xcodeproj/project.pbxproj" "${PROJECT_NAME}" )
+        patch_xcode_plugin( "${CMAKE_BINARY_DIR}/FireBreath.xcodeproj/project.pbxproj" "${PROJECT_NAME}" )
+    endif()
+
+
 
 ENDMACRO(add_mac_plugin)
 
