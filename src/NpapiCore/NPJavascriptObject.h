@@ -59,6 +59,10 @@ namespace FB { namespace Npapi {
 
         virtual ~NPJavascriptObject(void);
 
+        bool isValid() {
+            return m_valid && !m_api.expired() && !m_browser.expired();
+        }
+
     private:
         NPJavascriptObject(NPP npp);
 
@@ -76,7 +80,7 @@ namespace FB { namespace Npapi {
 
     public:
         // Static methods referenced in the NPClass
-        static NPObject *Allocate(NPP npp, NPClass *aClass);
+        static NPObject *_Allocate(NPP npp, NPClass *aClass);
         static void _Deallocate(NPObject *npobj);
         static void _Invalidate(NPObject *npobj);
         static bool _HasMethod(NPObject *npobj, NPIdentifier name);

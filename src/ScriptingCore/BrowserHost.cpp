@@ -19,6 +19,7 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include <boost/lambda/lambda.hpp>
 #include <boost/lambda/bind.hpp>
 #include <boost/lambda/construct.hpp>
+#include <boost/format.hpp>
 #include "JSObject.h"
 #include "DOM/Window.h"
 #include "variant_list.h"
@@ -58,8 +59,8 @@ namespace FB {
         _asyncCallData* makeCallback(void (*func)(void *), void * userData );
         void call( _asyncCallData* data );
 
-        std::list<_asyncCallData*> DataList;
-        std::list<_asyncCallData*> canceledDataList;
+        std::set<_asyncCallData*> DataList;
+        std::set<_asyncCallData*> canceledDataList;
     };
 }
 
@@ -67,7 +68,7 @@ volatile int FB::BrowserHost::InstanceCount(0);
 
 FB::BrowserHost::BrowserHost()
     : _asyncManager(boost::make_shared<AsyncCallManager>()), m_threadId(boost::this_thread::get_id()),
-      m_isShutDown(false), m_streamMgr(boost::make_shared<FB::BrowserStreamManager>())
+      m_isShutDown(false), m_streamMgr(boost::make_shared<FB::BrowserStreamManager>()), m_htmlLogEnabled(true)
 {
     ++InstanceCount;
 }
@@ -89,11 +90,13 @@ void FB::BrowserHost::shutdown()
 void FB::BrowserHost::htmlLog(const std::string& str)
 {
     FBLOG_INFO("BrowserHost", "Logging to HTML: " << str);
-    try {
-        this->ScheduleAsyncCall(&FB::BrowserHost::AsyncHtmlLog,
-            new FB::AsyncLogRequest(shared_from_this(), str));
-    } catch (const std::exception&) {
-        // This fails during shutdown; ignore it
+    if (m_htmlLogEnabled) {
+        try {
+            this->ScheduleAsyncCall(&FB::BrowserHost::AsyncHtmlLog,
+                new FB::AsyncLogRequest(shared_from_this(), str));
+        } catch (const std::exception&) {
+            // This fails during shutdown; ignore it
+        }
     }
 }
 
@@ -121,6 +124,59 @@ void FB::BrowserHost::AsyncHtmlLog(void *logReq)
 void FB::BrowserHost::evaluateJavaScript(const std::wstring &script)
 {
     evaluateJavaScript(FB::wstring_to_utf8(script));
+}
+
+void FB::BrowserHost::initJS(const void* inst)
+{
+    assertMainThread();
+    // Inject javascript helper function into the page; this is neccesary to help
+    // with some browser compatibility issues.
+    
+    const char* javascriptMethod = 
+        "window.__FB_CALL_%1% = "
+        "function(delay, f, args, fname) {"
+        "   if (arguments.length == 3)"
+        "       return setTimeout(function() { f.apply(null, args); }, delay);"
+        "   else"
+        "       return setTimeout(function() { f[fname].apply(f, args); }, delay);"
+        "};";
+    
+    // I'm open to suggestions on a better way to get a unique key for this plugin instance
+    uint32_t inst_key;
+    memcpy(&inst_key, &inst, 4);
+    inst_key >>= 1; // Make sure nobody could use this to get a valid pointer
+    inst_key *= 2.5;
+    unique_key = boost::lexical_cast<std::string>(inst_key);
+    
+    call_delegate = (boost::format("__FB_CALL_%1%") % inst_key).str();
+    
+    evaluateJavaScript((boost::format(javascriptMethod) % inst_key).str());
+}
+
+int FB::BrowserHost::delayedInvoke(const int delayms, const FB::JSObjectPtr& func,
+                                    const FB::VariantList& args, const std::string& fname)
+{
+    assertMainThread();
+    FB::JSObjectPtr delegate = getDelayedInvokeDelegate();
+    assert(delegate);
+    if (fname.empty())
+        return delegate->Invoke("", FB::variant_list_of(delayms)(func)(args)).convert_cast<int>();
+    else
+        return delegate->Invoke("", FB::variant_list_of(delayms)(func)(args)(fname)).convert_cast<int>();
+}
+
+FB::JSObjectPtr FB::BrowserHost::getDelayedInvokeDelegate() {
+    if (call_delegate.empty()) {
+        // initJS wasn't called (yet?)!
+        assert(false);
+    }
+    FB::JSObjectPtr delegate(getDOMWindow()->getProperty<FB::JSObjectPtr>(call_delegate));
+    if (!delegate) {
+        initJS(this);
+        delegate = getDOMWindow()->getProperty<FB::JSObjectPtr>(call_delegate);
+        assert(delegate);
+    }
+    return delegate;
 }
 
 FB::DOM::WindowPtr FB::BrowserHost::_createWindow(const FB::JSObjectPtr& obj) const
@@ -200,16 +256,26 @@ void FB::_asyncCallData::call()
 
 void FB::AsyncCallManager::call( _asyncCallData* data )
 {
-    data->call();
-    boost::recursive_mutex::scoped_lock _l(m_mutex);
-    DataList.remove(data);
+    {
+        // Verify _asyncCallData is still in DataList. If not, the _asyncCallData has already been dealt with. 
+        boost::recursive_mutex::scoped_lock _l(m_mutex);
+        std::set<_asyncCallData*>::iterator fnd = DataList.find(data);
+        if (DataList.end() != fnd)
+            DataList.erase(fnd);
+        else
+            data = NULL;
+    }
+    if (data) {
+        data->call();
+        delete data;
+    }
 }
 
 FB::_asyncCallData* FB::AsyncCallManager::makeCallback(void (*func)(void *), void * userData)
 {
     boost::recursive_mutex::scoped_lock _l(m_mutex);
     _asyncCallData *data = new _asyncCallData(func, userData, ++lastId, shared_from_this());
-    DataList.push_back(data);
+    DataList.insert(data);
     return data;
 }
 
@@ -218,7 +284,7 @@ void FB::AsyncCallManager::shutdown()
     boost::recursive_mutex::scoped_lock _l(m_mutex);
     // Store these so that they can be freed when the browserhost object is destroyed -- at that
     // point it's no longer possible for the browser to finish the async calls
-    canceledDataList.insert(canceledDataList.end(), DataList.begin(), DataList.end());
+    canceledDataList.insert(DataList.begin(), DataList.end());
 
     std::for_each(DataList.begin(), DataList.end(), boost::lambda::bind(&_asyncCallData::call, boost::lambda::_1));
     DataList.clear();
@@ -232,18 +298,11 @@ FB::AsyncCallManager::~AsyncCallManager()
 
 void asyncCallWrapper(void *userData)
 {
+    // Verify AsyncCallManager still exists. If not, the _asyncCallData has already been dealt with.
     FB::_asyncCallData* data(static_cast<FB::_asyncCallData*>(userData));
     FB::AsyncCallManagerPtr ptr(data->mgr.lock());
     if (ptr) {
         ptr->call(data);
-        // Oddly enough, the callback is sometimes re-entrant, which can
-        // cause things to get moved around while the call is happening.
-        // This means that DataList may have been cleared, in which case
-        // the AsyncManager will be responsible for freeing things
-        if (ptr->DataList.size() > 0) {
-            ptr->DataList.remove(data);
-            delete data;
-        }
     }
 }
 

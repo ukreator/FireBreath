@@ -37,7 +37,7 @@ bool ActiveXStream::readRanges( const std::vector<Range>& ranges )
     if ( !isSeekable() || !isOpen() ) return false;
     if ( !ranges.size() ) return true;
 
-    addRequest( ActiveXStreamRequest( FB::ptr_cast<ActiveXStream>(shared_ptr()), ranges ) );
+    addRequest( ActiveXStreamRequest( FB::ptr_cast<ActiveXStream>(shared_from_this()), ranges ) );
     return true;
 }
 
@@ -71,7 +71,7 @@ bool ActiveXStream::close()
 bool ActiveXStream::init()
 {
     if ( isSeekable() ) return true;                            // if seekable, wait for the user to pull data ...
-    else return addRequest( ActiveXStreamRequest( FB::ptr_cast<ActiveXStream>(shared_ptr()) ) );     // ... otherwise start downloading the whole thing
+    else return addRequest( ActiveXStreamRequest( FB::ptr_cast<ActiveXStream>(shared_from_this()) ) );     // ... otherwise start downloading the whole thing
 }
 
 bool ActiveXStream::addRequest( const ActiveXStreamRequest& Request )
@@ -273,7 +273,7 @@ void UseWinInet(const WCHAR* URL)
     /*HRESULT uoshr = URLOpenStream( 0, L"http://www.myurl.com/Resources.zip", 0, ibscb );
     ShowMessage( hwnd, "URLOpenStream: " + toString(uoshr) );*/
     IMoniker* FMoniker;
-    CreateURLMoniker(0, URL, &FMoniker);
+    CreateURLMonikerEx(0, URL, &FMoniker, URL_MK_UNIFORM );
 
     IBindCtx* FBindCtx;
     CreateAsyncBindCtx(0, ibscb, 0, &FBindCtx);

@@ -27,6 +27,7 @@ using namespace FB;
 @implementation MyCALayer
 
 - (void)dealloc {
+    FBLOG_DEBUG("PluginCore", FBLOG_FUNCTION());
     [super dealloc];
 }
 
@@ -58,7 +59,12 @@ PluginWindowMacCA::~PluginWindowMacCA()
 int16_t PluginWindowMacCA::GetValue(NPPVariable variable, void *value) {
     MyCALayer *mlayer = (MyCALayer*) m_layer;
     if (NPPVpluginCoreAnimationLayer == variable) {
-        *(CALayer**) value = [mlayer retain];
+        // Need to only retain when Safari is run in 32bit mode and is the host process. Backwards compatiblity.
+        // When Safari is run in 64bit mode, the plugin is sandboxed in another process. According to curr spec.
+        if (NSOrderedSame == [[[NSBundle mainBundle] bundleIdentifier] compare:@"com.apple.Safari"])
+            *(CALayer**) value = [mlayer retain];
+        else
+            *(CALayer**) value = mlayer;
         FBLOG_INFO("PluginCore", "GetValue(NPPVpluginCoreAnimationLayer)=" << (void*) mlayer);
     }
     return NPERR_NO_ERROR;
