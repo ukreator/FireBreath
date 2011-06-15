@@ -214,7 +214,9 @@ NPError NpapiPluginModule::NPP_Destroy(NPP instance, NPSavedData** save)
     // If this assertion fails, you probably have a circular reference
     // to your BrowserHost object somewhere -- the host should be gone
     // by this point. This assertion is warning you of a bug.
-    assert(weakHost.expired());
+    if(!weakHost.expired())
+        fprintf(stderr, "[ERROR] FireBreath: Got not expired Browser Host, possibly circular reference, NpapiPluginModule_NPP.cpp:218");
+    //assert(weakHost.expired());
 
     return NPERR_NO_ERROR;
 }
