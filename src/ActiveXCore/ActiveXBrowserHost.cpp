@@ -13,6 +13,7 @@ Copyright 2009 Richard Bateman, Firebreath development team
 \**********************************************************/
 
 #include <boost/assign.hpp>
+#include <stdexcept>
 #include "ActiveXBrowserHost.h"
 #include "axstream.h"
 #include "DOM/Document.h"
@@ -373,6 +374,10 @@ IDispatchEx* FB::ActiveX::ActiveXBrowserHost::getJSAPIWrapper( const FB::JSAPIWe
 
 FB::ActiveX::IDispatchWRef FB::ActiveX::ActiveXBrowserHost::getIDispatchRef( IDispatch* obj )
 {
+    if(obj == NULL)
+    {
+        throw std::logic_error("Invalid argument - obj is null");
+    }
     IDispatchSRef ref(boost::make_shared<FB::ShareableReference<IDispatch> >(obj));
     obj->AddRef();
     m_heldIDispatch.push_back(ref);
