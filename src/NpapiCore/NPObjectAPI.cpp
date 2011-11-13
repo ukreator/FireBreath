@@ -16,10 +16,11 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include <boost/bind.hpp>
 #include <boost/scoped_array.hpp>
 #include "NPObjectAPI.h"
-#include "NpapiBrowserHost.h"
 #include "NPJavascriptObject.h"
+#include "NpapiBrowserHost.h"
 #include "logging.h"
 #include <cassert>
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
 
 using namespace FB::Npapi;
 using boost::static_pointer_cast;
@@ -337,6 +338,9 @@ void FB::Npapi::NPObjectAPI::callMultipleFunctions( const std::string& name, con
     // particularly in FF4.
     
     NPObjectAPIPtr d = static_pointer_cast<NPObjectAPI>(browser->getDelayedInvokeDelegate());
+    if (!d) {
+        throw FB::script_error("Error calling handlers (delegate disappeared)");
+    }
     NPObject* delegate(d->getNPObject());
 
     // Allocate the arguments
@@ -379,6 +383,7 @@ void FB::Npapi::NPObjectAPI::callMultipleFunctions( const std::string& name, con
         browser->ReleaseVariantValue(&retVal);
         browser->ReleaseVariantValue(&npargs[1]);
     }
+    browser->ReleaseVariantValue(&npargs[2]);
     browser->ReleaseVariantValue(&npargs[3]);
 }
 

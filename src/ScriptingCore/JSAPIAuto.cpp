@@ -12,13 +12,15 @@ License:    Dual license model; choose one of two:
 Copyright 2009 Georg Fritzsche, Firebreath development team
 \**********************************************************/
 
-#include "JSAPIAuto.h"
 #include "utf8_tools.h"
 #include "boost/thread/mutex.hpp"
 #include "boost/make_shared.hpp"
 #include "JSFunction.h"
 #include "JSEvent.h"
 #include <cassert>
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
+
+#include "JSAPIAuto.h"
 
 bool FB::JSAPIAuto::s_allowDynamicAttributes = true;
 bool FB::JSAPIAuto::s_allowRemoveProperties = false;
@@ -439,7 +441,10 @@ void FB::JSAPIAuto::fireAsyncEvent( const std::string& eventName, const std::vec
     FB::variant evt(getAttribute(eventName));
     if (evt.is_of_type<FB::JSObjectPtr>()) {
         try {
-            evt.cast<JSObjectPtr>()->InvokeAsync("", args);
+            FB::JSObjectPtr handler(evt.cast<JSObjectPtr>());
+            if (handler) {
+                handler->InvokeAsync("", args);
+            }
         } catch (...) {
             // Apparently either this isn't really an event handler or something failed.
         }

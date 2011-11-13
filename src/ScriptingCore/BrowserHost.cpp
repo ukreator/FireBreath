@@ -20,14 +20,17 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include <boost/lambda/bind.hpp>
 #include <boost/lambda/construct.hpp>
 #include <boost/format.hpp>
+#include <boost/foreach.hpp>
+#include <boost/smart_ptr/enable_shared_from_this.hpp>
 #include "JSObject.h"
 #include "DOM/Window.h"
 #include "variant_list.h"
 #include "logging.h"
+#include "../PluginCore/BrowserStreamManager.h"
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
 
 #include "BrowserHost.h"
-#include <boost/smart_ptr/enable_shared_from_this.hpp>
-#include "../PluginCore/BrowserStreamManager.h"
+#include "SystemProxyDetector.h"
 
 //////////////////////////////////////////
 // This is used to keep async calls from
@@ -58,6 +61,7 @@ namespace FB {
 
         _asyncCallData* makeCallback(void (*func)(void *), void * userData );
         void call( _asyncCallData* data );
+        void remove( _asyncCallData* data );
 
         std::set<_asyncCallData*> DataList;
         std::set<_asyncCallData*> canceledDataList;
@@ -80,6 +84,10 @@ FB::BrowserHost::~BrowserHost()
 
 void FB::BrowserHost::shutdown()
 {
+    BOOST_FOREACH(FB::JSAPIPtr ptr, m_retainedObjects) {
+        // Notify each JSAPI object that we're shutting down
+        ptr->shutdown();
+    }
     freeRetainedObjects();
     boost::upgrade_lock<boost::shared_mutex> _l(m_xtmutex);
     m_isShutDown = true;
@@ -106,7 +114,7 @@ void FB::BrowserHost::AsyncHtmlLog(void *logReq)
     try {
         FB::DOM::WindowPtr window = req->m_host->getDOMWindow();
 
-        if (window->getJSObject()->HasProperty("console")) {
+        if (window && window->getJSObject()->HasProperty("console")) {
             FB::JSObjectPtr obj = window->getProperty<FB::JSObjectPtr>("console");
             printf("Logging: %s\n", req->m_msg.c_str());
             if (obj)
@@ -141,11 +149,11 @@ void FB::BrowserHost::initJS(const void* inst)
         "       return setTimeout(function() { f[fname].apply(f, args); }, delay);"
         "};";
     
-    // I'm open to suggestions on a better way to get a unique key for this plugin instance
-    uint32_t inst_key;
-    memcpy(&inst_key, &inst, 4);
-    inst_key >>= 1; // Make sure nobody could use this to get a valid pointer
-    inst_key *= 2.5;
+    // hash pointer to get a unique key for this plugin instance
+    std::size_t inst_key = static_cast<std::size_t>(
+        reinterpret_cast<std::ptrdiff_t>(inst));
+    inst_key += (inst_key >> 3);
+
     unique_key = boost::lexical_cast<std::string>(inst_key);
     
     call_delegate = (boost::format("__FB_CALL_%1%") % inst_key).str();
@@ -158,7 +166,8 @@ int FB::BrowserHost::delayedInvoke(const int delayms, const FB::JSObjectPtr& fun
 {
     assertMainThread();
     FB::JSObjectPtr delegate = getDelayedInvokeDelegate();
-    assert(delegate);
+    if (!delegate)
+        return -1;  // this is wrong (the return is meant to be the result of setTimeout)
     if (fname.empty())
         return delegate->Invoke("", FB::variant_list_of(delayms)(func)(args)).convert_cast<int>();
     else
@@ -166,17 +175,21 @@ int FB::BrowserHost::delayedInvoke(const int delayms, const FB::JSObjectPtr& fun
 }
 
 FB::JSObjectPtr FB::BrowserHost::getDelayedInvokeDelegate() {
-    if (call_delegate.empty()) {
-        // initJS wasn't called (yet?)!
-        assert(false);
+    FB::DOM::WindowPtr win(getDOMWindow());
+    if (win) {
+        if (call_delegate.empty()) {
+            initJS(this);
+        }
+        FB::JSObjectPtr delegate(win->getProperty<FB::JSObjectPtr>(call_delegate));
+        if (!delegate) {
+            // Sometimes the first try doesn't work; for some reason retrying generally does,
+            // and from then on it works fine
+            initJS(this);
+            delegate = win->getProperty<FB::JSObjectPtr>(call_delegate);
+        }
+        return delegate;
     }
-    FB::JSObjectPtr delegate(getDOMWindow()->getProperty<FB::JSObjectPtr>(call_delegate));
-    if (!delegate) {
-        initJS(this);
-        delegate = getDOMWindow()->getProperty<FB::JSObjectPtr>(call_delegate);
-        assert(delegate);
-    }
-    return delegate;
+    return FB::JSObjectPtr();
 }
 
 FB::DOM::WindowPtr FB::BrowserHost::_createWindow(const FB::JSObjectPtr& obj) const
@@ -279,6 +292,12 @@ FB::_asyncCallData* FB::AsyncCallManager::makeCallback(void (*func)(void *), voi
     return data;
 }
 
+void FB::AsyncCallManager::remove(_asyncCallData* data)
+{
+    boost::recursive_mutex::scoped_lock _l(m_mutex);
+    DataList.erase(data);
+}
+
 void FB::AsyncCallManager::shutdown()
 {
     boost::recursive_mutex::scoped_lock _l(m_mutex);
@@ -312,7 +331,11 @@ bool FB::BrowserHost::ScheduleAsyncCall( void (*func)(void *), void *userData ) 
         return false;
     } else {
         _asyncCallData* data = _asyncManager->makeCallback(func, userData);
-        return _scheduleAsyncCall(&asyncCallWrapper, data);
+        bool result = _scheduleAsyncCall(&asyncCallWrapper, data);
+        if (!result) {
+            _asyncManager->remove(data);
+        }
+        return result;
     }
 }
 
@@ -340,3 +363,7 @@ FB::BrowserStreamPtr FB::BrowserHost::createPostStream( const std::string& url,
     return ptr;
 }
 
+bool FB::BrowserHost::DetectProxySettings( std::map<std::string, std::string>& settingsMap, const std::string& url )
+{
+    return FB::SystemProxyDetector::get()->detectProxy(settingsMap, url);
+}

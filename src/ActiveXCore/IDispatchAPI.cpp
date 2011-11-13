@@ -14,19 +14,20 @@ Copyright 2009 Richard Bateman, Firebreath development team
 
 #include "win_targetver.h"
 #include <boost/bind.hpp>
-#include <dispex.h>
 #include <boost/scoped_array.hpp>
+#include <dispex.h>
 #include "utf8_tools.h"
 #include "JSAPI_IDispatchEx.h"
 #include "axutil.h"
 
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
 #include "IDispatchAPI.h"
 
 using namespace FB::ActiveX;
 
 boost::shared_ptr<FB::ActiveX::IDispatchAPI> IDispatchAPI::create(IDispatch * obj, const ActiveXBrowserHostPtr& host)
 {
-    return boost::make_shared<IDispatchAPI>(obj, host);
+    return boost::shared_ptr<IDispatchAPI>(new IDispatchAPI(obj, host));
 }
 
 FB::ActiveX::IDispatchAPI::IDispatchAPI(IDispatch * obj, const ActiveXBrowserHostPtr& host) :
@@ -343,6 +344,10 @@ void IDispatchAPI::SetProperty(const std::string& propertyName, const FB::varian
     if (dispatchEx) {
         hr = dispatchEx->InvokeEx(dispId, LOCALE_USER_DEFAULT, DISPATCH_PROPERTYPUTREF, &params,
             &result, &exceptionInfo, NULL);
+        if (hr == DISP_E_MEMBERNOTFOUND) {
+            hr = dispatchEx->InvokeEx(dispId, LOCALE_USER_DEFAULT, DISPATCH_PROPERTYPUT, &params,
+                NULL, &exceptionInfo, NULL);
+        }
     } else {
         hr = getIDispatch()->Invoke(dispId, IID_NULL, LOCALE_USER_DEFAULT,
             DISPATCH_PROPERTYPUT, &params, &result, &exceptionInfo, NULL);

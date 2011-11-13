@@ -27,6 +27,7 @@ include_directories(
     ${FB_CONFIG_DIR}
     ${FB_PLUGINCORE_SOURCE_DIR}
     ${Boost_INCLUDE_DIRS}
+    ${ATL_INCLUDE_DIRS}
     ${FB_CONFIG_DIR}
     )
 
@@ -90,6 +91,7 @@ set (SOURCES
     ${GENERAL}
     )
 
+ADD_PRECOMPILED_HEADER("${PROJECT_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME}

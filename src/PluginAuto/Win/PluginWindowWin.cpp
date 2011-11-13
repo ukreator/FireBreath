@@ -26,6 +26,7 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include "PluginWindowWin.h"
 
 #include "ConstructDefaultPluginWindows.h"
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
 
 #define WM_ASYNCTHREADINVOKE    WM_USER + 1
 
@@ -78,12 +79,51 @@ bool PluginWindowWin::WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
         return true;
     }
 
+	unsigned int modifierState = (GetKeyState(VK_SHIFT) & 0x8000) != 0 ? MouseButtonEvent::ModifierState_Shift : 0;
+	modifierState += (GetKeyState(VK_CONTROL) & 0x8000) != 0 ? MouseButtonEvent::ModifierState_Control : 0;
+	modifierState += (GetKeyState(VK_MENU) & 0x8000) != 0 ? MouseButtonEvent::ModifierState_Menu : 0;
     switch(uMsg) {
+		case WM_MOUSEACTIVATE:
+		{
+			///
+			/// @note: if you handle WM_MOUSEACTIVATE in WindowsEvent, you 
+			/// MUST return correct lRes's value and correct return value 
+			/// for SendEvent(). If do not, probably the plugin does not 
+			/// properly receive the input focus and keystrokes. Handle this 
+			/// message carefully!
+			///
+#ifdef _DEBUG
+			std::stringstream ss;
+			FBLOG_INFO("PluginWindowWin::WinProc: ",
+                "WM_MOUSEACTIVATE Forcing setting focus to hWnd=0x"
+                << std::hex << hWnd << " and returning MA_ACTIVATE value.");
+#endif
+			SetFocus( m_hWnd ); // get key focus when the mouse is clicked on our plugin
+			lRes = MA_ACTIVATE; // returns activation code (for normal scenarios should return
+                                //   MA_ACTIVATE value, please review msdn documentation about
+                                //   available return values)
+			return true;
+		}
+		case WM_GETDLGCODE:
+		{
+			lRes =	DLGC_WANTALLKEYS	// All keyboard input.
+				|	DLGC_WANTARROWS		// Direction keys.
+				|	DLGC_WANTCHARS		// WM_CHAR messages.
+				|	DLGC_WANTMESSAGE	// All keyboard input (the application passes this message
+                                        //   in the MSG structure to the control).
+				|	DLGC_WANTTAB;		// TAB key.
+#ifdef _DEBUG
+			std::stringstream ss;
+			FBLOG_INFO("PluginWindowWin::WinProc: ",
+                "WM_GETDLGCODE Forcing to return " << lRes
+                << " value for hWnd=0x" << std::hex << hWnd);
+#endif
+			return true;
+		}
         case WM_LBUTTONDOWN: 
         {
-            SetFocus( m_hWnd ); //get key focus when the mouse is clicked on our plugin
             MouseDownEvent ev(MouseButtonEvent::MouseButton_Left, 
-                              GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                              GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), modifierState);
             if(SendEvent(&ev))
                 return true;
             break;
@@ -91,7 +131,7 @@ bool PluginWindowWin::WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
         case WM_RBUTTONDOWN:
         {
             MouseDownEvent ev(MouseButtonEvent::MouseButton_Right,
-                              GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                              GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), modifierState);
             if(SendEvent(&ev))
                 return true;
             break;
@@ -99,7 +139,7 @@ bool PluginWindowWin::WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
         case WM_MBUTTONDOWN:
         {
             MouseDownEvent ev(MouseButtonEvent::MouseButton_Middle,
-                              GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                              GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), modifierState);
             if(SendEvent(&ev))
                 return true;
             break;
@@ -107,7 +147,7 @@ bool PluginWindowWin::WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
         case WM_LBUTTONUP: 
         {
             MouseUpEvent ev(MouseButtonEvent::MouseButton_Left,
-                            GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                            GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), modifierState);
             if(SendEvent(&ev))
                 return true;
             break;
@@ -115,7 +155,7 @@ bool PluginWindowWin::WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
         case WM_RBUTTONUP:
         {
             MouseUpEvent ev(MouseButtonEvent::MouseButton_Right,
-                            GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                            GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), modifierState);
             if(SendEvent(&ev))
                 return true;
             break;
@@ -123,7 +163,7 @@ bool PluginWindowWin::WinProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
         case WM_MBUTTONUP:
         {
             MouseUpEvent ev(MouseButtonEvent::MouseButton_Middle,
-                            GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                            GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), modifierState);
             if(SendEvent(&ev))
                 return true;
             break;

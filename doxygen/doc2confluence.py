@@ -14,7 +14,7 @@ License:    Dual license model; choose one of two:
 
 Copyright 2009 the Firebreath development team
 """
-import os, sys, xmlrpclib
+import os, sys, SOAPpy
 from xml.dom import minidom
 from itertools import izip
 
@@ -28,8 +28,9 @@ class Doxygen2Confluence:
     pathMap = {}
     baseUrl = "/display/documentation/%s"
     classDocsUrl = "http://classdocs.firebreath.org/"
-    server = xmlrpclib.ServerProxy("http://www.firebreath.org/rpc/xmlrpc")
-    rpc = server.confluence1
+    url = "http://www.firebreath.org/rpc/soap-axis/confluenceservice-v2?wsdl"
+    server = SOAPpy.SOAPProxy(url)
+    rpc = SOAPpy.WSDL.Proxy(url)
     token = ""
     space = "documentation"
     topPages = {
@@ -50,6 +51,7 @@ class Doxygen2Confluence:
         self.token = self.rpc.login(self.username, self.password)
 
     def __init__(self, username, password):
+        SOAPpy.Parser._parseSOAP = self.confluence_soap_parser
         self.username = username
         self.password = password
         self.login()
@@ -66,10 +68,10 @@ class Doxygen2Confluence:
         return retVal.replace("<", "(").replace(">", ")").replace("/", " ")
 
     def makeFirstPageInConfluence(self, pageId, targetPageId):
-        children = self.rpc.getChildren(self.token, pageId)
-        if children[0]["id"] != targetPageId:
+        children = self.rpc.getChildren(self.token, SOAPpy.Types.longType(long(pageId)))
+        if len(children) and children[0]["id"] != targetPageId:
             print "Moving %s to before %s" % (targetPageId, children[0]["id"])
-            self.rpc.movePage(self.token, targetPageId, children[0]["id"], "above")
+            self.rpc.movePage(self.token, SOAPpy.Types.longType(long(targetPageId)), SOAPpy.Types.longType(long(children[0]["id"])), "above")
 
     def exportToConfluence(self, refId, pageName, kind):
         try:
@@ -81,19 +83,29 @@ class Doxygen2Confluence:
             except:
                 page = {"space": self.space, "title": pageName}
 
-        page["parentId"] = self.parents[refId]
         if kind == "file":
             filename = "%s_source.html" % refId
         else:
             filename = "%s.html" % refId
-        page["content"] = "{doxygen_init}{doxygen_init}{html-include:url=http://classdocs.firebreath.org/patched/%s}" % filename
+
+        npage = {
+            "content": "{doxygen_init}{html-include:url=http://classdocs.firebreath.org/patched/%s}" % filename,
+            "space": page["space"],
+            "title": page["title"],
+        }
+
+        if hasattr(page, 'id'):
+            npage["id"] = SOAPpy.Types.longType(long(page["id"]))
+            npage["parentId"] = SOAPpy.Types.longType(long(self.parents[refId]))
+            npage["version"] = SOAPpy.Types.intType(int(page["version"]))
 
         n = 0
         while n < 10:
             try:
-                page = self.rpc.storePage(self.token, page)
-                self.createdPages.append(page["id"])
-                self.rpc.setContentPermissions(self.token, page["id"], "Edit", [ {'groupName': 'confluence-administrators', 'type': 'Edit'} ])
+                npage["content"] = self.rpc.convertWikiToStorageFormat(self.token, npage['content'])
+                npage = self.rpc.storePage(self.token, npage)
+                self.createdPages.append(npage["id"])
+                self.rpc.setContentPermissions(self.token, SOAPpy.Types.longType(long(npage["id"])), "Edit", [ {'groupName': 'confluence-administrators', 'type': 'Edit'} ])
                 break;
             except Exception as ex:
                 self.login()
@@ -102,16 +114,16 @@ class Doxygen2Confluence:
                 print ex
                 pass
 
-        return page["id"]
+        return npage["id"]
 
     def cleanConfluence(self):
         for kind, id in self.topPages.items():
             print "Scanning pages for %s (id %s)" % (kind, id)
-            pages = self.rpc.getDescendents(self.token, id)
+            pages = self.rpc.getDescendents(self.token, SOAPpy.Types.longType(long(id)))
             for page in pages:
                 if (page["id"] not in self.createdPages) and (page["id"] not in self.topPages.values()):
                     print "Removing defunct page: %s (%s)" % (page["title"], page["id"])
-                    self.rpc.removePage(self.token, page["id"])
+                    self.rpc.removePage(self.token, SOAPpy.Types.longType(long(page["id"])))
 
     def processDirectory(self, path):
         xml = minidom.parse("docs/xml/index.xml")
@@ -165,7 +177,10 @@ class Doxygen2Confluence:
 
         for id, url in izip(self.pathMap.keys(), self.pathMap.values()):
             #print "Changing %s to %s" % (id, url)
-            fileText = fileText.replace(id, url)
+            try:
+                fileText = fileText.replace(id, url)
+            except UnicodeDecodeError:
+                fileText = fileText.replace(id.encode('utf8'), url.encode('utf8'))
         fileText = fileText.replace(r'img src="', r'img src="http://classdocs.firebreath.org/')
 
         nf = open(os.path.join(outPath, filename), "w")
@@ -221,6 +236,13 @@ class Doxygen2Confluence:
                 membersPageId = self.exportToConfluence("%s-members" % refid, "%s Members" % item["name"], "members")
                 self.makeFirstPageInConfluence(pageId, membersPageId)
         self.cleanConfluence()
+
+    # This parser is due to this bug https://jira.atlassian.com/browse/CONF-6720
+    #   once that bug is fixed this parser can be retired
+    def confluence_soap_parser(self, xml_str, rules=None, parser=SOAPpy.Parser._parseSOAP):
+        attribute = 'xsi:type="soapenc:Array"'
+        xml_str = xml_str.replace('%s %s' % (attribute, attribute), attribute)
+        return parser(xml_str, rules=rules)
 
 
 def Main():

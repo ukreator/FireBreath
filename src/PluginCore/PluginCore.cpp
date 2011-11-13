@@ -19,6 +19,7 @@ Copyright 2009 PacketPass, Inc and the Firebreath development team
 #include "BrowserHost.h"
 #include "DOM/Window.h"
 #include "logging.h"
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
 
 #include "PluginCore.h"
 
@@ -44,7 +45,7 @@ void PluginCore::setPlatform(const std::string& os, const std::string& browser)
 \***************************/
 
 PluginCore::PluginCore() : m_paramsSet(false), m_Window(NULL),
-    m_windowLessParam(boost::indeterminate)
+    m_windowLessParam(boost::indeterminate), m_scriptingOnly(false)
 {
     FB::Log::initLogging();
     // This class is only created on the main UI thread,
@@ -99,17 +100,14 @@ boost::optional<std::string> PluginCore::getParam(const std::string& key) {
 // to indicate that we're done.
 bool PluginCore::setReady()
 {
-    m_host->initJS(this);
-    
     bool rval = false;
     FBLOG_TRACE("PluginCore", "Plugin Ready");
-    // Ensure that the JSAPI object has been created, in case the browser hasn't requested it yet.
-    getRootJSAPI();
     try {
         FB::VariantMap::iterator fnd = m_params.find("onload");
         if (fnd != m_params.end()) {
+            m_host->initJS(this);
             FB::JSObjectPtr method = fnd->second.convert_cast<FB::JSObjectPtr>();
-            if(method) {
+            if (method) {
                 FBLOG_TRACE("PluginCore", "InvokeDelayed(onload)");
                 m_host->delayedInvoke(250, method, FB::variant_list_of(getRootJSAPI()));
                 rval = true;
@@ -124,7 +122,6 @@ bool PluginCore::setReady()
 
 bool PluginCore::isWindowless()
 {
-    m_host->initJS(this);
     if (m_windowLessParam != boost::indeterminate) {
         return m_windowLessParam;
     } else {

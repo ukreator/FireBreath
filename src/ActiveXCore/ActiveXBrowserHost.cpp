@@ -13,8 +13,7 @@ Copyright 2009 Richard Bateman, Firebreath development team
 \**********************************************************/
 
 #include <boost/assign.hpp>
-#include <stdexcept>
-#include "ActiveXBrowserHost.h"
+#include <boost/smart_ptr/make_shared.hpp>
 #include "axstream.h"
 #include "DOM/Document.h"
 #include "DOM/Window.h"
@@ -27,9 +26,9 @@ Copyright 2009 Richard Bateman, Firebreath development team
 
 #include "ComVariantUtil.h"
 #include "ActiveXFactoryDefinitions.h"
-#include <boost/smart_ptr/make_shared.hpp>
+#include "ActiveXBrowserHost.h"
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
 
-using boost::assign::list_of;
 using namespace FB;
 using namespace FB::ActiveX;
 
@@ -41,6 +40,8 @@ ActiveXBrowserHost::ActiveXBrowserHost(IWebBrowser2 *doc, IOleClientSite* site)
 
 ActiveXBrowserHost::~ActiveXBrowserHost(void)
 {
+    if (!isShutDown())
+        shutdown();
 }
 
 bool ActiveXBrowserHost::_scheduleAsyncCall(void (*func)(void *), void *userData) const
@@ -82,8 +83,11 @@ FB::DOM::NodePtr ActiveXBrowserHost::_createNode(const FB::JSObjectPtr& obj) con
 
 void ActiveXBrowserHost::initDOMObjects()
 {
-    if (!m_window) {
+    // m_htmlWin/m_htmlDocDisp will be null after suspend()
+    if (!m_window && m_htmlWin) {
         m_window = DOM::Window::create(IDispatchAPI::create(m_htmlWin, ptr_cast<ActiveXBrowserHost>(shared_from_this())));
+    }
+    if (!m_document && m_htmlDocDisp) {
         m_document = DOM::Document::create(IDispatchAPI::create(m_htmlDocDisp, ptr_cast<ActiveXBrowserHost>(shared_from_this())));
     }
 }
@@ -135,6 +139,7 @@ void ActiveXBrowserHost::shutdown()
         // Next, kill the message window so that none that have been made go through
         m_messageWin.reset();
     }
+    ReleaseAllHeldObjects();
 
     // Finally, run the main browser shutdown, which will fire off any cross-thread
     // calls that somehow haven't made it through yet
@@ -390,5 +395,16 @@ void FB::ActiveX::ActiveXBrowserHost::ReleaseAllHeldObjects()
         (*it)->getPtr()->Release();
     }
     m_heldIDispatch.clear();
+}
+
+void FB::ActiveX::ActiveXBrowserHost::Navigate( const std::string& url, const std::string& target )
+{
+    CComBSTR destURL(FB::utf8_to_wstring(url).c_str());
+    CComVariant targetWin(FB::utf8_to_wstring(target).c_str());
+
+    CComVariant vEmpty;
+
+    HRESULT hr = m_webBrowser->Navigate(destURL, &vEmpty, &targetWin, &vEmpty, &vEmpty);
+    assert(SUCCEEDED(hr));
 }
 

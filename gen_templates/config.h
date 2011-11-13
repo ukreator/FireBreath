@@ -12,7 +12,14 @@
 #define FBSTRING_ProductName "${FBSTRING_ProductName}"
 #define FBSTRING_PluginName "${FBSTRING_PluginName}"
 
-#define FBSTRiNG_MIMETypeCombined 
+// Format is Major.Minor.Patch.Build
+
+#define FBSTRING_VERSION_MAJOR ${FBSTRING_VERSION_MAJOR}
+#define FBSTRING_VERSION_MINOR ${FBSTRING_VERSION_MINOR}
+#define FBSTRING_VERSION_PATCH ${FBSTRING_VERSION_PATCH}
+#define FBSTRING_VERSION_BUILD ${FBSTRING_VERSION_BUILD}
+
+#define FBSTRiNG_MIMETypeCombined
 
 #define FBSTRING_MIMETypeList "${FBMIMETYPE_LIST}"
 
@@ -40,9 +47,9 @@
 #if FB_GUI_DISABLED == 1
 
 #define FBMAC_USE_CARBON                    0
-#define FBMAC_USE_COCOA                     0
+#define FBMAC_USE_COCOA                     1
 #define FBMAC_USE_QUICKDRAW                 0
-#define FBMAC_USE_COREGRAPHICS              0
+#define FBMAC_USE_COREGRAPHICS              1
 #define FBMAC_USE_COREANIMATION             0
 #define FBMAC_USE_INVALIDATINGCOREANIMATION 0
 

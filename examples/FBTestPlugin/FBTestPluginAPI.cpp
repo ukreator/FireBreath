@@ -25,7 +25,7 @@ Copyright 2009 PacketPass Inc, Georg Fritzsche,
 
 #include "FBTestPluginAPI.h"
 
-FBTestPluginAPI::FBTestPluginAPI(boost::shared_ptr<FBTestPlugin> plugin, FB::BrowserHostPtr host) : m_host(host), m_pluginWeak(plugin)
+FBTestPluginAPI::FBTestPluginAPI(const FBTestPluginPtr& plugin, const FB::BrowserHostPtr& host) : m_host(host), m_pluginWeak(plugin)
 {    
     registerMethod("add",  make_method(this, &FBTestPluginAPI::add));
     registerMethod(L"echo",  make_method(this, &FBTestPluginAPI::echo));
@@ -48,7 +48,8 @@ FBTestPluginAPI::FBTestPluginAPI(boost::shared_ptr<FBTestPlugin> plugin, FB::Bro
     registerMethod("optionalTest", make_method(this, &FBTestPluginAPI::optionalTest));
     registerMethod("getURL", make_method(this, &FBTestPluginAPI::getURL));
     registerMethod("postURL", make_method(this, &FBTestPluginAPI::postURL));
-     
+    registerMethod("openPopup", make_method(this, &FBTestPluginAPI::openPopup));
+
     registerMethod(L"скажи",  make_method(this, &FBTestPluginAPI::say));
     
     registerMethod("addWithSimpleMath", make_method(this, &FBTestPluginAPI::addWithSimpleMath));
@@ -71,6 +72,8 @@ FBTestPluginAPI::FBTestPluginAPI(boost::shared_ptr<FBTestPlugin> plugin, FB::Bro
     registerProperty("pluginPath",
                      make_property(this, &FBTestPluginAPI::get_pluginPath));
 
+    registerMethod("getProxyInfo", make_method(this, &FBTestPluginAPI::getProxyInfo));
+
     m_simpleMath = boost::make_shared<SimpleMathAPI>(m_host);
 }
 
@@ -79,9 +82,9 @@ FBTestPluginAPI::~FBTestPluginAPI()
     //std::map<int,int>::capacity()
 }
 
-boost::shared_ptr<FBTestPlugin> FBTestPluginAPI::getPlugin()
+FBTestPluginPtr FBTestPluginAPI::getPlugin()
 {
-    boost::shared_ptr<FBTestPlugin> plugin = m_pluginWeak.lock();
+    FBTestPluginPtr plugin = m_pluginWeak.lock();
     if (!plugin)
         throw FB::script_error("The plugin object has been destroyed");
     return plugin;
@@ -296,9 +299,9 @@ long FBTestPluginAPI::countArrayLength(const FB::JSObjectPtr &jso)
     long len = array.size();// array->GetProperty("length").convert_cast<long>();
     return len;
 }
-long FBTestPluginAPI::addWithSimpleMath(const boost::shared_ptr<SimpleMathAPI>& math, long a, long b) 
+FB::variant FBTestPluginAPI::addWithSimpleMath(const FB::JSObjectPtr& math, long a, long b) 
 {
-    return math->add(a, b);
+    return math->Invoke("add", FB::variant_list_of(a)(b));
 }
 
 ThreadRunnerAPIPtr FBTestPluginAPI::createThreadRunner()
@@ -353,9 +356,29 @@ const boost::optional<std::string> FBTestPluginAPI::optionalTest( const std::str
     return str;
 }
 
-boost::shared_ptr<SimpleMathAPI> FBTestPluginAPI::createSimpleMath()
+SimpleMathAPIPtr FBTestPluginAPI::createSimpleMath()
 {
     // Create a new simplemath object each time
     return boost::make_shared<SimpleMathAPI>(m_host);
 }
 
+FB::VariantMap FBTestPluginAPI::getProxyInfo(const boost::optional<std::string>& url)
+{
+    std::map<std::string, std::string> proxyInfo;
+    
+    if (url)
+        m_host->DetectProxySettings(proxyInfo, *url);
+    else
+        m_host->DetectProxySettings(proxyInfo, "http://www.firebreath.org");
+    FB::VariantMap outMap;
+    for (std::map<std::string, std::string>::iterator it = proxyInfo.begin();
+        it != proxyInfo.end(); ++it) {
+        outMap[it->first] = it->second;
+    }
+    return outMap;
+}
+
+void FBTestPluginAPI::openPopup()
+{
+    m_host->Navigate("http://www.firebreath.org", "_blank");
+}

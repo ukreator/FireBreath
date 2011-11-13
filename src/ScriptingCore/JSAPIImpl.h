@@ -75,6 +75,12 @@ namespace FB
         /// @brief  Invalidates this object.
         ////////////////////////////////////////////////////////////////////////////////////////////////////
         void invalidate();
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        /// @fn void shutdown()
+        ///
+        /// @brief  Called to notify the object that the plugin is shutting down
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        virtual void shutdown() {};
 
     protected:
         virtual void fireAsyncEvent( const std::string& eventName, const std::vector<variant>& args );
@@ -149,7 +155,8 @@ namespace FB
         /// @endcode
         /// 
         /// @param  eventName   Name of the event.  This event must start with "on"
-        /// @param  args        The arguments that should be sent to each attached event handler
+        /// @param  members
+        /// @param  arguments        The arguments that should be sent to each attached event handler
         ///
         /// @see registerEvent
         ////////////////////////////////////////////////////////////////////////////////////////////////////

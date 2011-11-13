@@ -9,6 +9,7 @@
 
 #include <sstream>
 #include "FBTestPluginAPI.h"
+#include "SimpleMathAPI.h"
 #include <stdio.h>
 
 #include "FBTestPlugin.h"
@@ -56,7 +57,8 @@ void FBTestPlugin::StaticDeinitialize()
 }
 
 
-FBTestPlugin::FBTestPlugin()
+FBTestPlugin::FBTestPlugin(const std::string& mimetype) :
+    m_mimetype(mimetype)
 {
 }
 
@@ -71,6 +73,13 @@ FBTestPlugin::~FBTestPlugin()
 
 FB::JSAPIPtr FBTestPlugin::createJSAPI()
 {
+    // Return a SimpleMath object instead of a FBTestPluginAPI:
+    if (!m_mimetype.compare("application/x-fbtestplugin-math")) {
+        // Create a new simplemath object each time        
+        return boost::make_shared<SimpleMathAPI>(m_host);
+    }
+
+    // By default, return a FBTestPluginAPI object:
     // m_host is the BrowserHost
     return boost::make_shared<FBTestPluginAPI>(FB::ptr_cast<FBTestPlugin>(shared_from_this()), m_host);
 }
@@ -137,6 +146,10 @@ bool FBTestPlugin::draw( FB::RefreshEvent *evt, FB::PluginWindow* win )
 
     ::SetTextAlign(hDC, TA_CENTER|TA_BASELINE);
     LPCTSTR pszText = _T("FireBreath Plugin!");
+    if (!m_mimetype.compare("application/x-fbtestplugin-math")) {
+        // Mark 2nd mimetype differently than main mimetype
+        pszText =  _T("FireBreath Plugin (Math)!");
+    }
     ::TextOut(hDC, pos.left + (pos.right - pos.left) / 2, pos.top + (pos.bottom - pos.top) / 2, pszText, lstrlen(pszText));
 
     if (wnd) {
@@ -155,10 +168,15 @@ bool FBTestPlugin::isWindowless()
 
 void FBTestPlugin::onPluginReady()
 {
-    FB::URI uri = FB::URI::fromString(m_host->getDOMWindow()->getLocation());
+    FB::DOM::WindowPtr window = m_host->getDOMWindow();
+    if (!window)
+        return;
+
+    FB::URI uri = FB::URI::fromString(window->getLocation());
     if (uri.query_data.find("log") != uri.query_data.end()) {
         m_host->setEnableHtmlLog(true);
     } else {
         m_host->setEnableHtmlLog(false);
     }
+
 }

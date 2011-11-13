@@ -15,7 +15,6 @@
 # Written to work with cmake 2.6
 cmake_minimum_required (VERSION 2.6)
 set (CMAKE_BACKWARDS_COMPATIBILITY 2.6)
-set_property(GLOBAL PROPERTY USE_FOLDERS On)
 
 Project (FireBreath)
 
@@ -37,6 +36,11 @@ include(${FB_ROOT}/cmake/common.cmake)
 set(FB_EXPORT_FILE ${CMAKE_BINARY_DIR}/FireBreath_Exports.cmake)
 file(REMOVE ${FB_EXPORT_FILE})
 add_subdirectory(${FB_ROOT}/cmake ${FB_BUILD_DIR}/cmake_common)
+
+#Visual Studio Express editions don't want Solution Folders enabled.
+if(NOT ATL_LIBRARY) 
+    set_property(GLOBAL PROPERTY USE_FOLDERS On)
+endif() 
 
 if (APPLE)
     clear_xcode_patches()
@@ -130,7 +134,7 @@ endif()
 # Common projects -- projects that don't have any plugin specific code
 if (NOT FB_SCRIPTINGCORE_LOADED)
     add_subdirectory(${FB_UNITTEST_FW_SOURCE_DIR} ${FB_UNITTEST_FW_BUILD_DIR})
-    add_subdirectory(${FB_NPAPIHOST_SOURCE_DIR} ${FB_NPAPIHOST_BUILD_DIR})
+    #add_subdirectory(${FB_NPAPIHOST_SOURCE_DIR} ${FB_NPAPIHOST_BUILD_DIR})
     add_subdirectory(${FB_SCRIPTINGCORETEST_SOURCE_DIR} ${FB_SCRIPTINGCORETEST_BUILD_DIR})
     if (WIN32)
         add_subdirectory(${FB_ACTIVEXCORETEST_SOURCE_DIR} ${FB_ACTIVEXCORETEST_BUILD_DIR})

@@ -94,7 +94,6 @@ namespace FB {
             CFBControl() : JSAPI_IDispatchEx<CFBControlX, ICurObjInterface, piid>(pMT), FB::BrowserPlugin(pMT),
                 m_mimetype(pMT)
             {
-                FB::PluginCore::setPlatform("Windows", "IE");
                 setFSPath(g_dllPath);
             }
 
@@ -221,15 +220,10 @@ namespace FB {
         HRESULT FB::ActiveX::CFBControl<pFbCLSID, pMT, ICurObjInterface, piid, plibid>::OnDraw( ATL_DRAWINFO& di )
         {
             if (pluginWin && m_bWndLess && FB::pluginGuiEnabled()) {
-                HRESULT lRes(0);
+                LRESULT lRes(0);
                 PluginWindowlessWin* win = static_cast<PluginWindowlessWin*>(pluginWin.get());
-                win->setWindowPosition(
-                    di.prcBounds->left,
-                    di.prcBounds->top,
-                    di.prcBounds->right-di.prcBounds->left,
-                    di.prcBounds->bottom-di.prcBounds->top
-                    );
-                win->HandleEvent(WM_PAINT, reinterpret_cast<uint32_t>(di.hdcDraw), NULL, lRes);
+                FB::Rect bounds = { di.prcBounds->top, di.prcBounds->left, di.prcBounds->bottom, di.prcBounds->right };
+                win->HandleDraw(di.hdcDraw, bounds);
             }
             return S_OK;
         }
@@ -273,6 +267,7 @@ namespace FB {
 
             // There will be no window this time!
             clientSiteSet();
+            pluginMain->setScriptingOnly(true);
             setReady();
             return S_OK;
         }
@@ -337,8 +332,15 @@ namespace FB {
             }
             if (m_bWndLess) {
                 pluginWin.swap(boost::scoped_ptr<PluginWindow>(getFactoryInstance()->createPluginWindowless(FB::WindowContextWindowless(NULL))));
-                static_cast<FB::PluginWindowlessWin*>(pluginWin.get())
-                    ->setInvalidateWindowFunc(boost::bind(&CFBControlX::invalidateWindow, this, _1, _2, _3, _4));
+                FB::PluginWindowlessWin* ptr(static_cast<FB::PluginWindowlessWin*>(pluginWin.get()));
+                ptr->setInvalidateWindowFunc(boost::bind(&CFBControlX::invalidateWindow, this, _1, _2, _3, _4));
+                if (m_spInPlaceSite) {
+                    HWND hwnd = 0;
+					HRESULT hr2 = m_spInPlaceSite->GetWindow(&hwnd);
+                    if (SUCCEEDED(hr2)) {
+                        ptr->setHWND(hwnd);
+                    }
+                }
             } else {
                 pluginWin.swap(boost::scoped_ptr<PluginWindow>(getFactoryInstance()->createPluginWindowWin(FB::WindowContextWin(m_hWnd))));
                 static_cast<PluginWindowWin*>(pluginWin.get())->setCallOldWinProc(true);
@@ -524,14 +526,28 @@ namespace FB {
             switch(dwMsgMapID)
             {
             case 0: {
-                // WM_CREATE is the only message we handle here
+                // Set Focus & Capture whenever a button is pushed inside of the plugin instance.
                 switch(uMsg)
                 {
+                case WM_LBUTTONDOWN:
+                case WM_MBUTTONDOWN:
+                case WM_RBUTTONDOWN:
+                    if (m_bNegotiatedWnd && m_bWndLess && m_spInPlaceSite) {
+                        m_spInPlaceSite->SetFocus(true);
+                        m_spInPlaceSite->SetCapture(true);
+                    }
+                    break;
+                case WM_LBUTTONUP:
+                case WM_MBUTTONUP:
+                case WM_RBUTTONUP:
+                    if (m_bNegotiatedWnd && m_bWndLess && m_spInPlaceSite) {
+                        m_spInPlaceSite->SetCapture(false);
+                    }
+                    break;
                 case WM_MOUSEACTIVATE:
                     break;
                     //lResult = ::DefWindowProc(hWnd, uMsg, wParam, lParam);
                     //return TRUE;
-
                 }
 
                 if (bHandled)

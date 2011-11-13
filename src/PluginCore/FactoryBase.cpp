@@ -15,10 +15,13 @@
 #include "FactoryBase.h"
 #include "ConstructDefaultPluginWindows.h"
 #include "NpapiPluginFactory.h"
+
 #ifdef FB_WIN
 #include "ActiveXFactoryDefinitions.h"
 #endif
+
 #include "PluginInfo.h"
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
 
 FB::FactoryBase::FactoryBase()
 {

@@ -22,12 +22,13 @@ if (VERBOSE)
 endif()
 
 include_directories(
-	${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${FB_SCRIPTINGCORE_SOURCE_DIR}
     ${FB_PLUGINAUTO_SOURCE_DIR}
     ${FB_CONFIG_DIR}
     ${FB_UNITTEST_FW_SOURCE_DIR}/src
     ${Boost_INCLUDE_DIRS}
+    ${ATL_INCLUDE_DIRS}
     )
 
 file (GLOB GENERAL RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -43,11 +44,32 @@ set (SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "UnitTests")
 
+set_target_properties (${PROJECT_NAME} PROPERTIES
+    LINK_FLAGS "${LINK_FLAGS}"
+    )
+
 target_link_libraries (${PROJECT_NAME}
     ScriptingCore
     PluginCore
     UnitTest++
     )
+
+if (APPLE)
+    find_library(CARBON_FRAMEWORK Carbon) 
+    find_library(SYSCONFIG_FRAMEWORK SystemConfiguration)
+    FIND_LIBRARY(CORE_FOUNDATION NAMES foundation)
+    include_directories(${FOUNDATION}/Headers)
+    target_link_libraries (${PROJECT_NAME}
+        ${CARBON_FRAMEWORK}
+        ${SYSCONFIG_FRAMEWORK}
+        )
+endif()
+
+if (WIN32)
+    target_link_libraries (${PROJECT_NAME}
+        Wininet
+        )
+endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${FB_BIN_DIR}"

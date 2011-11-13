@@ -16,6 +16,8 @@ Copyright 2011 Richard Bateman,
 #include "BrowserHost.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/bind.hpp>
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
+
 #include "SimpleStreamHelper.h"
 
 static const int MEGABYTE = 1024 * 1024;
@@ -51,10 +53,10 @@ FB::SimpleStreamHelperPtr FB::SimpleStreamHelper::AsyncPost( const FB::BrowserHo
 }
 
 
-struct SyncGetHelper
+struct SyncHTTPHelper
 {
 public:
-    SyncGetHelper()
+    SyncHTTPHelper()
         : done(false) { }
     void setPtr(const FB::SimpleStreamHelperPtr& inPtr) { ptr = inPtr; }
     
@@ -72,7 +74,7 @@ public:
             m_cond.wait(lock);
         }
     }
-public:
+
     bool done;
     FB::SimpleStreamHelperPtr ptr;
     boost::condition_variable m_cond;
@@ -87,10 +89,28 @@ FB::HttpStreamResponsePtr FB::SimpleStreamHelper::SynchronousGet( const FB::Brow
     // Also, if you could block the main thread, that still wouldn't work because the request
     // is processed on the main thread!
     assert(!host->isMainThread());
-    SyncGetHelper helper;
+    SyncHTTPHelper helper;
     try {
-        FB::HttpCallback cb(boost::bind(&SyncGetHelper::getURLCallback, &helper, _1, _2, _3, _4));
+        FB::HttpCallback cb(boost::bind(&SyncHTTPHelper::getURLCallback, &helper, _1, _2, _3, _4));
         FB::SimpleStreamHelperPtr ptr = AsyncGet(host, uri, cb, cache, bufferSize);
+        helper.setPtr(ptr);
+        helper.waitForDone();
+    } catch (const std::exception&) {
+        // If anything weird happens, just return NULL (to indicate failure)
+        return FB::HttpStreamResponsePtr();
+    }
+    return helper.m_response;
+}
+
+FB::HttpStreamResponsePtr FB::SimpleStreamHelper::SynchronousPost( const FB::BrowserHostPtr& host,
+    const FB::URI& uri, const std::string& postdata, const bool cache /*= true*/, const size_t bufferSize /*= 128*1024*/ )
+{
+    // Do not call this on the main thread.
+    assert(!host->isMainThread());
+    SyncHTTPHelper helper;
+    try {
+        FB::HttpCallback cb(boost::bind(&SyncHTTPHelper::getURLCallback, &helper, _1, _2, _3, _4));
+        FB::SimpleStreamHelperPtr ptr = AsyncPost(host, uri, postdata, cb, cache, bufferSize);
         helper.setPtr(ptr);
         helper.waitForDone();
     } catch (const std::exception&) {
@@ -106,7 +126,7 @@ FB::SimpleStreamHelper::SimpleStreamHelper( const BrowserHostPtr& host, const Ht
 
 }
 
-bool FB::SimpleStreamHelper::onStreamCompleted( FB::StreamCompletedEvent *evt, FB::BrowserStream * )
+bool FB::SimpleStreamHelper::onStreamCompleted( FB::StreamCompletedEvent *evt, FB::BrowserStream *stream )
 {
     if (!evt->success) {
         if (callback)
@@ -131,8 +151,11 @@ bool FB::SimpleStreamHelper::onStreamCompleted( FB::StreamCompletedEvent *evt, F
         // Free all the old blocks
         blocks.clear();
     }
-    if (callback)
-        callback(true, parse_http_headers(stream->getHeaders()), data, received);
+    if (callback && stream) {
+        std::multimap<std::string, std::string> headers;
+        headers = parse_http_headers(stream->getHeaders());
+        callback(true, headers, data, received);
+    }
     callback.clear();
     self.reset();
     return false; // Always return false to make sure the browserhost knows to let go of the object

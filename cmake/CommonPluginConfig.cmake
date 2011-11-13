@@ -43,6 +43,26 @@ set(PLUGIN_INCLUDE_DIRS
     ${FB_CONFIG_DIR}
     )
 
+if (NOT FBMAC_USE_CARBON AND NOT FBMAC_USE_COCOA)
+    # As of Safari 5.1 we have to choose one even if we don't draw
+    set(FBMAC_USE_COCOA 1)
+endif()
+if (NOT FBMAC_USE_INVALIDATINGCOREANIMATION
+        AND NOT FBMAC_USE_COREANIMATION
+        AND NOT FBMAC_USE_COREGRAPHICS
+        AND NOT FBMAC_USE_QUICKDRAW)
+    set(FBMAC_USE_COREGRAPHICS 1)
+endif()
+
+if (NOT FBMAC_USE_CARBON AND FBMAC_USE_QUICKDRAW)
+    message("!! You can't use QuickDraw without Carbon; disabling QuickDraw (it's deprecated anyway)")
+    if (NOT FBMAC_USE_INVALIDATINGCOREANIMATION
+            AND NOT FBMAC_USE_COREANIMATION
+            AND NOT FBMAC_USE_COREGRAPHICS)
+        set(FBMAC_USE_COREGRAPHICS 1)
+    endif()
+endif()
+
 # Clean up PluginConfig values as needed
 # set up the mimetype strings
 string(REPLACE ";" "|" FBMIMETYPE_LIST "${FBSTRING_MIMEType}")
@@ -60,12 +80,21 @@ string(REPLACE "." ";" FB_VERSION_SPLIT ${FB_VERSION_SPLIT})
 LIST(LENGTH FB_VERSION_SPLIT _LEN)
 
 list(GET FB_VERSION_SPLIT 0 FBSTRING_VERSION_MAJOR)
-list(GET FB_VERSION_SPLIT 1 FBSTRING_VERSION_MINOR)
+if (_LEN GREATER 1)
+    list(GET FB_VERSION_SPLIT 1 FBSTRING_VERSION_MINOR)
+else()
+    set(FBSTRING_VERSION_MINOR 0)
+endif()
+
 if (_LEN GREATER 2)
-    list(GET FB_VERSION_SPLIT 2 FBSTRING_VERSION_BUILD)
+    list(GET FB_VERSION_SPLIT 2 FBSTRING_VERSION_PATCH)
+else()
+    set(FBSTRING_VERSION_PATCH 0)
 endif()
 if (_LEN GREATER 3)
-    list(GET FB_VERSION_SPLIT 3 FBSTRING_VERSION_PATCH)
+    list(GET FB_VERSION_SPLIT 3 FBSTRING_VERSION_BUILD)
+else()
+    set(FBSTRING_VERSION_BUILD 0)
 endif()
 
 # configure default generated files
@@ -130,6 +159,7 @@ if (WIN32)
         ${PLUGIN_INTERNAL_DEPS}
         ${ATL_LIBRARY}
         psapi
+        Wininet
         )
     file (GLOB IDL_FILES
         ${FB_TEMPLATE_DEST_DIR}/*.idl)
@@ -157,6 +187,10 @@ if (APPLE)
         ${COCOA_FRAMEWORK}
         ${PLUGIN_INTERNAL_DEPS})
     #endif (FBMAC_USE_COCOA)
+    find_library(SYSCONFIG_FRAMEWORK SystemConfiguration)
+    set (PLUGIN_INTERNAL_DEPS
+        ${SYSCONFIG_FRAMEWORK}
+        ${PLUGIN_INTERNAL_DEPS})
 
     if (FBMAC_USE_COREANIMATION OR FBMAC_USE_COREGRAPHICS OR FBMAC_USE_INVALIDATINGCOREANIMATION)
         find_library(FOUNDATION_FRAMEWORK Foundation)

@@ -31,7 +31,7 @@ public:
     static void StaticDeinitialize();
 
 public:
-    FBTestPlugin();
+    FBTestPlugin(const std::string& mimetype);
     virtual ~FBTestPlugin();
 
 public:
@@ -62,6 +62,8 @@ public:
 #ifdef HAS_LEAKFINDER
     static boost::scoped_ptr<LeakFinderXmlOutput> pOut;
 #endif
+  private:
+    std::string m_mimetype;
 };
 
 #endif

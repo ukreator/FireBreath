@@ -29,8 +29,9 @@ namespace FB {
 
     class PluginWindow;
     class PluginEvent;
-    class JSAPI;
-    class BrowserHost;
+    FB_FORWARD_PTR(PluginCore);
+    FB_FORWARD_PTR(JSAPI);
+    FB_FORWARD_PTR(BrowserHost);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     /// @class  PluginCore
@@ -117,7 +118,7 @@ namespace FB {
         virtual ~PluginCore();
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
-        /// @fn virtual void PluginCore::SetHost(FB::BrowserHostPtr)
+        /// @fn virtual void PluginCore::SetHost(const FB::BrowserHostPtr& host)
         ///
         /// @brief  Called by the browser during startup to provide a Browser Host object. 
         ///
@@ -140,6 +141,30 @@ namespace FB {
         {
             return m_Window;
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        /// @fn virtual public void FB::PluginCore::setScriptingOnly(const bool so)
+        ///
+        /// @brief  Called by the browser to indicate that there is no DOM element associated
+        ///         with this object
+        ///
+        /// @returns void
+        /// @since 1.6
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        virtual void setScriptingOnly(const bool so = true)
+        {
+            m_scriptingOnly = so;
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        /// @fn virtual public bool FB::PluginCore::isScriptingOnly() const
+        ///
+        /// @brief  Returns true if there is no DOM element associated with the plugin
+        ///
+        /// @returns bool
+        /// @since 1.6
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        virtual bool isScriptingOnly() const { return m_scriptingOnly; }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
         /// @fn virtual void PluginCore::SetWindow(PluginWindow *)
@@ -310,6 +335,7 @@ namespace FB {
         /// Don't use directly; use getRootJSAPI()
         JSAPIPtr m_api;
         boost::tribool m_windowLessParam;
+        bool m_scriptingOnly;
     };
 };
 

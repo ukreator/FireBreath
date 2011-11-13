@@ -15,7 +15,6 @@ Copyright 2009 Richard Bateman, Firebreath development team
 // FireBreathWin.cpp : Implementation of DLL Exports.
 
 #include "win_common.h"
-#include <Psapi.h>
 #include "global/resource.h"
 #include "global/config.h"
 #include "FireBreathWin_i.h"
@@ -24,6 +23,9 @@ Copyright 2009 Richard Bateman, Firebreath development team
 #include "axutil.h"
 #include "PluginCore.h"
 #include <boost/algorithm/string.hpp>
+#include "precompiled_headers.h" // On windows, everything above this line in PCH
+
+#include <Psapi.h>
 
 using FB::ActiveX::isStaticInitialized;
 using FB::ActiveX::flagStaticInitialized;
@@ -51,6 +53,7 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID* ppv)
     HRESULT hr = _AtlModule.DllGetClassObject(rclsid, riid, ppv);
     if (SUCCEEDED(hr) && !isStaticInitialized()) {
         FB::Log::initLogging();
+        FB::PluginCore::setPlatform("Windows", "IE");
         getFactoryInstance()->globalPluginInitialize();
         flagStaticInitialized(true);
     }
@@ -76,11 +79,11 @@ extern HINSTANCE gInstance;
 // DllRegisterServer - Adds entries to the system registry
 STDAPI DllRegisterServer(void)
 {
-    //Sleep(10000);
-    // registers object, typelib and all interfaces in typelib
+	//Sleep(10000);
+	boost::scoped_ptr<FbPerUserRegistration> regHolder;
 #ifndef FB_ATLREG_MACHINEWIDE
     if (!boost::algorithm::ends_with(getProcessName(), "heat.exe")) {
-        FbPerUserRegistration perUser(true);
+        regHolder.swap(boost::scoped_ptr<FbPerUserRegistration>(new FbPerUserRegistration(true)));
     }
 #endif
     HRESULT hr = _AtlModule.DllRegisterServer();
@@ -94,9 +97,10 @@ STDAPI DllRegisterServer(void)
 // DllUnregisterServer - Removes entries from the system registry
 STDAPI DllUnregisterServer(void)
 {
+	boost::scoped_ptr<FbPerUserRegistration> regHolder;
 #ifndef FB_ATLREG_MACHINEWIDE
     if (!boost::algorithm::ends_with(getProcessName(), "heat.exe")) {
-        FbPerUserRegistration perUser(true);
+        regHolder.swap(boost::scoped_ptr<FbPerUserRegistration>(new FbPerUserRegistration(true)));
     }
 #endif
     HRESULT hr = _AtlModule.DllUnregisterServer();

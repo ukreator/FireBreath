@@ -45,7 +45,7 @@ namespace FB {
             typedef boost::function<void (uint32_t, uint32_t, uint32_t, uint32_t)> InvalidateWindowFunc;
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////
-            /// @fn HDC PluginWindowlessWin::getHDC()
+            /// @fn HDC PluginWindowlessWin::getHDC() const
             ///
             /// @brief  Gets the HDC of the plugin window
             ///
@@ -75,6 +75,9 @@ namespace FB {
 
             // Handle event given to us from NPAPI (windowless plugins don't intercept raw Windows events)
             bool HandleEvent(uint32_t event, uint32_t wParam, uint32_t lParam, LRESULT& lRes);
+
+            // Handle draw event specially, since it needs draw bounds
+            bool HandleDraw(HDC dc, FB::Rect bounds);
 
             // Invalidate the window (Call from any thread)
             void InvalidateWindow() const;

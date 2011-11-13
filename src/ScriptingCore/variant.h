@@ -126,7 +126,7 @@ namespace FB
         bad_variant_cast(const std::type_info& src, const std::type_info& dest)
             : from(src.name()), to(dest.name())
         { }
-        virtual const char* what() { 
+        virtual const char* what() const throw() { 
             return "bad cast"; 
         }
         const char* from;
@@ -372,7 +372,7 @@ namespace FB
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
-        /// @fn template <typename T> variant& variant::assign(const T& x)
+        /// @fn template <typename T> variant& variant::assign(const T& x, bool)
         ///
         /// @brief  Assigns a value of arbitrary type
         ///
