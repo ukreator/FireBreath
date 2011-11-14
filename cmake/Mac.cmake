@@ -50,7 +50,7 @@ function(clear_xcode_patches)
 
 endfunction(clear_xcode_patches)
 
-MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMPLATE INSOURCES ADDITIONAL_LDFLAGS)
+MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMPLATE INSOURCES)
 
     message ("Creating Mac Browser Plugin project ${PROJECT_NAME}")
     if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/bundle)
@@ -62,10 +62,7 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
     configure_template(${STRINGS_TEMPLATE} ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/InfoPlist.strings)
     configure_template(${LOCALIZED_TEMPLATE} ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r)
 
-    
-    set(PLIST_SRC ${CMAKE_CURRENT_BINARY_DIR}/bundle/Info.plist)
-    set(LANG_RES ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj)
-        
+    #set(MAC_RESOURCE_FILES ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r)
 
     set(SOURCES
         ${${INSOURCES}}
@@ -79,16 +76,6 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
         -DXP_MACOSX=1
         )
 
-#    add_executable( ${PROJECT_NAME} MACOSX_BUNDLE ${SOURCES} )
-#
-#    string(REPLACE " " "\ " FB_ESC_ROOT_DIR ${FB_ROOT_DIR})
-#    set_target_properties(${PROJECT_NAME} PROPERTIES
-#        XCODE_ATTRIBUTE_WRAPPER_EXTENSION plugin  #sets the extension to .plugin
-#        XCODE_ATTRIBUTE_MACH_O_TYPE mh_bundle
-#        XCODE_ATTRIBUTE_INFOPLIST_FILE ${PLIST_SRC}
-#        LINK_FLAGS "-bundle -Wl,-exported_symbols_list,${FB_ESC_ROOT_DIR}/gen_templates/ExportList_plugin.txt ${ADDITIONAL_LDFLAGS}")
-#
-
     set (RCFILES ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.r)
 
     foreach(ARCH ${CMAKE_OSX_ARCHITECTURES})
@@ -98,7 +85,7 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
     # Compile the resource file
     find_program(RC_COMPILER Rez NO_DEFAULT_PATHS)
     execute_process(COMMAND
-        ${RC_COMPILER} ${RCFILES} -useDF ${ARCHS} -arch x86_64 -o ${LANG_RES}/Localized.rsrc
+        ${RC_COMPILER} ${RCFILES} -useDF ${ARCHS} -arch x86_64 -o ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.rsrc
         )
 
     set_source_files_properties(
@@ -125,22 +112,5 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
         ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/InfoPlist.strings
         ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.rsrc
         PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/English.lproj")
-    
-    if("${CMAKE_GENERATOR}" STREQUAL "Unix Makefiles")
-        set(BUNDLE_SRC ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app)
-        set(BUNDLE_TARGET ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.plugin)
-
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory      ${BUNDLE_SRC} ${BUNDLE_TARGET}
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different   ${PLIST_SRC} ${BUNDLE_TARGET}/Contents
-            COMMAND ${CMAKE_COMMAND} -E copy_directory	    ${LANG_RES} ${BUNDLE_TARGET}/Contents/Resources
-
-        )
-    else()
-        patch_xcode_plugin( "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.xcodeproj/project.pbxproj" "${PROJECT_NAME}" )
-        patch_xcode_plugin( "${CMAKE_BINARY_DIR}/FireBreath.xcodeproj/project.pbxproj" "${PROJECT_NAME}" )
-    endif()
-
 
 ENDMACRO(add_mac_plugin)
-
