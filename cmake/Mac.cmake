@@ -94,7 +94,7 @@ MACRO(add_mac_plugin PROJECT_NAME PLIST_TEMPLATE STRINGS_TEMPLATE LOCALIZED_TEMP
         )
     message("Generating ${CMAKE_CURRENT_BINARY_DIR}/bundle/English.lproj/Localized.rsrc")
 
-    add_library( ${PROJECT_NAME} MODULE
+    add_executable( ${PROJECT_NAME} MACOSX_BUNDLE
         ${SOURCES} 
         )
 
