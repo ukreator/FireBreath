@@ -142,7 +142,7 @@ namespace FB { namespace Npapi
         FB::JSObjectPtr outArr = host->getDOMWindow()->createArray();
         FB::VariantList inArr = var.cast<FB::VariantList>();
 
-        for (FB::VariantList::iterator it = inArr.begin(); it != inArr.end(); it++) {
+        for (FB::VariantList::iterator it = inArr.begin(); it != inArr.end(); ++it) {
             outArr->Invoke("push", FB::variant_list_of(*it));
         }
 
@@ -163,7 +163,7 @@ namespace FB { namespace Npapi
         FB::JSObjectPtr out = host->getDOMWindow()->createMap();
         FB::VariantMap inMap = var.cast<FB::VariantMap>();
 
-        for (FB::VariantMap::iterator it = inMap.begin(); it != inMap.end(); it++) {
+        for (FB::VariantMap::iterator it = inMap.begin(); it != inMap.end(); ++it) {
             out->SetProperty(it->first, it->second);
         }
 
@@ -208,7 +208,6 @@ namespace FB { namespace Npapi
                 outObj = tmpObj->getNPObject();
                 host->RetainObject(outObj);
             } else {
-                host->retainJSAPIPtr(obj);
                 outObj = host->getJSAPIWrapper(var.cast<FB::JSAPIPtr>(), true);
             }
             if (outObj) {
@@ -269,8 +268,7 @@ namespace FB { namespace Npapi
                 outObj = tmpObj->getNPObject();
                 host->RetainObject(outObj);
             } else {
-                host->retainJSAPIPtr(obj);
-                outObj = NPJavascriptObject::NewObject(host, obj);
+                outObj = NPJavascriptObject::NewObject(host, obj, true);
             }
 
             npv.type = NPVariantType_Object;

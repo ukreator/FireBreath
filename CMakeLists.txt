@@ -44,6 +44,7 @@ endif()
 
 if (APPLE)
     clear_xcode_patches()
+    add_definitions(-D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES=0)
 endif()
 
 

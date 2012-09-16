@@ -46,6 +46,11 @@ file (GLOB PLUGIN RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     NpapiTypes.*
     NpapiFactory*
     )
+    
+file (GLOB PCH RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    precompiled_*
+    )
+    
 
 SOURCE_GROUP(NpapiScripting FILES ${SCRIPTING})
 
@@ -91,10 +96,11 @@ set (SOURCES
     ${WIN_SOURCES}
     ${MAC_SOURCES}
     ${X11_SOURCES}
+    ${PCH}
     )
 
-ADD_PRECOMPILED_HEADER(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
+ADD_PRECOMPILED_HEADER(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "FireBreath Core")
 
 if (UNIX)

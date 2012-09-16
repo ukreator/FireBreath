@@ -55,6 +55,7 @@ file (GLOB TYPES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     JSExceptions.h
     FBPointers.h
     Shareable*
+    logging.h
 )
 
 file (GLOB JSAPI_OBJECTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -77,6 +78,7 @@ file (GLOB GENERAL RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     Factory*
     Test*
     [^.]*.py
+    precompiled_headers.*
     )
 
 SOURCE_GROUP(JSAPI FILES ${JSAPI_OBJECTS})
@@ -91,8 +93,8 @@ set (SOURCES
     ${GENERAL}
     )
 
-ADD_PRECOMPILED_HEADER("${PROJECT_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
+ADD_PRECOMPILED_HEADER("${PROJECT_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)
 
 target_link_libraries(${PROJECT_NAME}
     ${Boost_LIBRARIES}

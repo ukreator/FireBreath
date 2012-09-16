@@ -41,11 +41,6 @@ file (GLOB COMMON RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     [^.]*.h
     [^.]*.txt
     )
-file (GLOB PCH_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-    precompiled_headers.*
-    )
-
-list(REMOVE_ITEM COMMON ${PCH_FILES})
 
 set(LogKey "${PLUGIN_NAME}_log4cplus")
 if (${LogKey})
@@ -108,6 +103,7 @@ file (GLOB MAC_QUICKDRAW_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
 
 file (GLOB MAC_CARBON_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     Mac/*Carbon.h
+    Mac/*Carbon.mm
     Mac/*Carbon.cpp
     )
 file (GLOB MAC_COCOA_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -154,7 +150,7 @@ if (WIN32)
     set (GENERATED_IDL
         "${FB_TEMPLATE_DEST_DIR}/FireBreathWin.tlb"
         "${FB_TEMPLATE_DEST_DIR}/FireBreathWin_i.h"
-        "${FB_TEMPLATE_DEST_DIR}/FireBreathWin_i.c"
+        "${FB_TEMPLATE_DEST_DIR}/FireBreathWin_i.cpp"
         )
 
     SET (IDL_FILE ${FB_TEMPLATE_DEST_DIR}/FireBreathWin.idl)
@@ -163,7 +159,7 @@ if (WIN32)
         ${IDL_FILE}
         "${FB_TEMPLATE_DEST_DIR}/FireBreathWin.tlb"
         "${FB_TEMPLATE_DEST_DIR}/FireBreathWin_i.h"
-        "${FB_TEMPLATE_DEST_DIR}/FireBreathWin_p.c"
+        "${FB_TEMPLATE_DEST_DIR}/FireBreathWin_p.cpp"
         PROPERTIES
             HEADER_FILE_ONLY 1
             GENERATED 1
@@ -184,8 +180,8 @@ if (WIN32)
             /out "${FB_TEMPLATE_DEST_DIR}" 
             /tlb "FireBreathWin.tlb"
             /h "FireBreathWin_i.h"
-            /iid "FireBreathWin_i.c"
-            /proxy "FireBreathWin_p.c"
+            /iid "FireBreathWin_i.cpp"
+            /proxy "FireBreathWin_p.cpp"
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IDL_FILE}
         )
@@ -210,8 +206,8 @@ set (SOURCES
     ${X11_SOURCES})
 
 
-ADD_PRECOMPILED_HEADER(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
+ADD_PRECOMPILED_HEADER(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "FireBreath Generated")
 if (WIN32)
     # psapi is needed to get the process info and check if WiX is calling
