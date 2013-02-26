@@ -87,10 +87,6 @@ set (SOURCES
     ${X11_SOURCES}
     )
 
-if (APPLE)
-    FIND_LIBRARY(FOUNDATION NAMES foundation)
-    include_directories(${FOUNDATION}/Headers)
-endif()
 
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
 ADD_PRECOMPILED_HEADER(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.h" "${CMAKE_CURRENT_SOURCE_DIR}/precompiled_headers.cpp" SOURCES)

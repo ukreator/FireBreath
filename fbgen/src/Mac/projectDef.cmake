@@ -27,10 +27,16 @@ set (SOURCES
     )
 
 set(PLIST "Mac/bundle_template/Info.plist")
+
 set(STRINGS "Mac/bundle_template/InfoPlist.strings")
+
 set(LOCALIZED "Mac/bundle_template/Localized.r")
 
-add_mac_plugin(${PROJECT_NAME} ${PLIST} ${STRINGS} ${LOCALIZED} SOURCES)
+# Set here any additionall linkage flags for your plugin (e.g. rpath for dylibs and so on)
+set(ADDITIONAL_LDFLAGS "")
+
+
+add_mac_plugin(${PROJECT_NAME} ${PLIST} ${STRINGS} ${LOCALIZED} SOURCES ${ADDITIONAL_LDFLAGS})
 
 # add library dependencies here; leave ${PLUGIN_INTERNAL_DEPS} there unless you know what you're doing!
 target_link_libraries(${PROJECT_NAME}

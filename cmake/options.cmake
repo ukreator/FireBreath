@@ -8,5 +8,11 @@ if (NOT FB_CONFIG_DIR)
 endif()
 
 option(BUILD_EXAMPLES "Build example projects" OFF)
-option(WITH_DYNAMIC_MSVC_RUNTIME "Build with dynamic MSVC runtime (/MD)" OFF)
-option(WITH_SYSTEM_BOOST "Build with system Boost" OFF)
+
+# Vars that can be set by cmake that includes FB scripts
+if(NOT DEFINED WITH_DYNAMIC_MSVC_RUNTIME)
+  option(WITH_DYNAMIC_MSVC_RUNTIME "Build with dynamic MSVC runtime (/MD)" OFF)
+endif()
+if(NOT DEFINED WITH_SYSTEM_BOOST )
+  option(WITH_SYSTEM_BOOST "Build with system Boost" OFF)
+endif()

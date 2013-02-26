@@ -53,8 +53,6 @@ if (APPLE)
     add_definitions(-D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES=0)
 endif()
 
-#check to make sure we're either using WITH_SYSTEM_BOOST or have the firebreath-boost lib installed
-fb_check_boost()
 
 if (NOT FB_RELEASE AND FB_PROJECTS_DIR AND NOT EXISTS ${FB_PROJECTS_DIR})
     message(FATAL_ERROR "The specified project directory ${FB_PROJECTS_DIR} is not found")

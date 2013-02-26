@@ -369,6 +369,10 @@ IDispatchEx* FB::ActiveX::ActiveXBrowserHost::getJSAPIWrapper( const FB::JSAPIWe
 
 FB::ActiveX::IDispatchWRef FB::ActiveX::ActiveXBrowserHost::getIDispatchRef( IDispatch* obj )
 {
+    if(obj == NULL)
+    {
+        throw std::logic_error("Invalid argument - obj is null");
+    }
     IDispatchSRef ref(boost::make_shared<FB::ShareableReference<IDispatch> >(obj));
     obj->AddRef();
     m_heldIDispatch.push_back(ref);

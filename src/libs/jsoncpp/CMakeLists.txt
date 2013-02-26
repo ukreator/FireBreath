@@ -25,6 +25,10 @@ else()
     set(TARGET_ALREADY_EXISTS 0)
 endif()
 
+# quick hack - this variable is not set here for some reason
+set(FB_SCRIPTINGCORE_SOURCE_DIR "${FB_SOURCE_DIR}/ScriptingCore")
+
+
 include_directories (
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 	${CMAKE_CURRENT_SOURCE_DIR}/include

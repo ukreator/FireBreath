@@ -14,7 +14,7 @@ Copyright 2010 Richard Bateman, Firebreath development team
 
 #include "precompiled_headers.h" // On windows, everything above this line in PCH
 #include "CrossThreadCall.h"
-
+#include <stdexcept>
 using namespace FB;
 
 void CrossThreadCall::syncCallbackFunctor(void *userData)
@@ -48,6 +48,8 @@ void CrossThreadCall::asyncCallbackFunctor(void *userData)
     } catch (const FB::bad_variant_cast& ex) {
         // we can't sensibly handle it here
         FB_UNUSED_VARIABLE(ex);
+    } catch (const std::logic_error e) {
+        // Oh gosh what to do here?
     }
 }
 
